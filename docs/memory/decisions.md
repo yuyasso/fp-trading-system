@@ -186,3 +186,48 @@ El marco de interpretación pre-registrado del PO es exactamente lo que exijo: u
 TL, ejecuta. Un paso, cero modificaciones.
 
 ---
+
+## 2026-05-25 00:25 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Sprint correctivo: regenerar `scripts/run_is.py`**
+
+**En una frase:** regeneramos el fichero perdido usando los 8 tests existentes como spec, con el fix `.dropna()` incluido — sprint de un archivo, sin debate analítico.
+
+---
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Fichero | `scripts/run_is.py` únicamente |
+| Spec | `tests/unit/test_run_is_helpers.py` — 8 tests, intocables |
+| Fix incluido | `.dropna()` tras `iloc[_LOOKBACK_MONTHS * 21:]`, en ese orden (no antes) |
+| Modificaciones al runner | Ninguna — `runner.py` intacto |
+
+---
+
+**Criterios de aceptación — no acepto sin:**
+1. 8/8 tests `test_run_is_helpers.py` en verde.
+2. Suite completa sin regresiones (≥ 80 tests).
+3. `ruff check` 0 errores.
+4. `.dropna()` presente y aplicado **después** del warmup trim — verificable con grep.
+5. JSON generado contiene `"statistical_warning"` no vacío.
+
+---
+
+**Riesgos:**
+- Único riesgo relevante: que el orden `iloc` → `dropna()` se invierta accidentalmente. El grep del criterio 4 lo detecta sin ambigüedad.
+
+TL, el encargo ya está redactado en tu mensaje anterior. Planifica para EXECUTION. Sin bloqueantes.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Sprint trivial, spec cerrada por los 8 tests existentes, sin decisiones de diseño abiertas. El encargo del TL es preciso y los criterios del PO son verificables con grep y pytest.
+
+TL, luz verde. Ejecuta.
+
+---

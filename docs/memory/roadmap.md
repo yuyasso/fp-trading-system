@@ -7,7 +7,8 @@
 (el PO poblará este listado cuando se valide la primera propuesta)
 
 ## Completado
-(vacío)
+
+- **2026-05-25 00:29** — Sprint aceptado · Sesión `b128c4bf` · ** Recrear `scripts/run_is.py` (perdido por fallo de escritura) para que los 8 tests existentes pasen en verde, incluyendo el fix `.dropna()` que elimina los `null` del JSON de métricas.
 
 - **2026-05-24 01:14** — Sprint completado · Sesión `d1b1b9b6` · No tengo permisos de lectura en este contexto de agente. Procedo con el encargo basándome en la estructura del repo y el historial — tengo suficiente información para ser preciso. Una nota importante 
 
