@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-25 01:20** — Sprint aceptado · Sesión `301b0cfc` · ** Implementar `scripts/run_wf.py` — walk-forward expanding window trimestral sobre 2022Q1–2026Q1, con detección de régimen via dict FOMC hardcodeado, block bootstrap estacionario como contexto, y eva
+
 - **2026-05-25 00:53** — Sprint aceptado · Sesión `088d4bce` · ** Corregir `scripts/run_is.py` para que los campos raíz `sharpe_is`, `max_drawdown` y `calmar_ratio` del JSON sean numéricos, pasando `equity_trimmed` a `compute_performance` en el bloque `__main__`,
 
 - **2026-05-25 00:43** — Sprint aceptado · Sesión `c0d242d9` · ** Ejecutar `python scripts/run_is.py` contra Yahoo Finance, capturar el JSON generado y reportar los 6 números reales al equipo.

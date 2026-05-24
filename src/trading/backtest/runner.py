@@ -212,3 +212,57 @@ def run_backtest(
     report = compute_performance(portfolio_returns, freq=Frequency.DAILY)
 
     return portfolio_returns, report
+
+
+def run_backtest_range(
+    tickers: list[str],
+    start: date,
+    end: date,
+    lookback_months: int = 12,
+    target_vol: float = 0.10,
+) -> tuple[pd.Series, PerformanceReport]:
+    """
+    Run a TSMOM long-only backtest over any date range.
+
+    # WF: no OOS guard — used exclusively by walk-forward runner
+
+    Identical to ``run_backtest`` except the OOS boundary guard is removed.
+    This function exists solely to allow walk-forward evaluation where the
+    IS expanding window crosses _OOS_START. Do not use for parameter tuning
+    or strategy development — that must use ``run_backtest`` with the guard.
+
+    Parameters / Returns / Notes
+    ----------------------------
+    See ``run_backtest`` for full documentation.
+    """
+    # --- 1. Load OHLCV via adapter — no direct yfinance call ---
+    data = YFinanceAdapter().load_ohlcv_daily(tickers, start, end)
+
+    close = _pivot_ohlcv(data, "close")
+    open_ = _pivot_ohlcv(data, "open")
+
+    # --- 2. Long-only TSMOM signal with monthly rebalancing ---
+    lookback_days = lookback_months * 21
+    position = _compute_monthly_signal(close, lookback_days)
+
+    # --- 3. Entry at next day's open — NO DATA LEAKAGE ---
+    entry_price = open_.shift(-1)
+
+    # Daily asset return: hold from open[t+1] to open[t+2]
+    daily_asset_returns = entry_price.shift(-1) / entry_price - 1.0
+
+    # --- 4. EWMA vol-scaling (λ=0.94 — RiskMetrics, not a free parameter) ---
+    vol_weight = _compute_ewma_vol_weight(close, target_vol)
+
+    # Final position = long-only signal × vol-scaled weight (per asset)
+    final_position = position * vol_weight
+
+    # --- 5. Portfolio equity curve (equal-weight mean across tickers) ---
+    portfolio_returns = (final_position * daily_asset_returns).mean(axis=1)
+    portfolio_returns.index = portfolio_returns.index.date
+    portfolio_returns.name = "tsmom_is"
+
+    # --- 6. Performance metrics — delegated entirely to equity_metrics ---
+    report = compute_performance(portfolio_returns, freq=Frequency.DAILY)
+
+    return portfolio_returns, report

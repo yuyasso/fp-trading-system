@@ -1,0 +1,11 @@
+{
+  "total_windows": 18,
+  "normal_windows": 7,
+  "stress_windows": 11,
+  "normal_gates_passed": 2,
+  "stop_triggered": true,
+  "sharpe_oos_normal_mean": 0.395109852032178,
+  "sharpe_oos_stress_mean": 2.5169209755118698,
+  "paper_trading_authorized": false,
+  "statistical_warning": "~63 obs/trimestre; intervalos bootstrap amplios. No inferir significancia de ventanas individuales."
+}

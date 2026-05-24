@@ -617,3 +617,152 @@ Los 4 criterios que definí están cumplidos sin excepción:
 _Sesión de ejecución de Claude Code: `088d4bce`_
 
 ---
+
+## 2026-05-25 01:20 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Implementar `scripts/run_wf.py` — walk-forward expanding window trimestral sobre 2022Q1–2026Q1, con detección de régimen via dict FOMC hardcodeado, block bootstrap estacionario como contexto, y evaluación de gates pre-registrados por ventana y bloque de régimen.
+
+---
+
+**Archivos a crear/modificar:**
+
+```
+scripts/run_wf.py                             ← nuevo (script ejecutable + helpers testeables)
+src/trading/backtest/runner.py                ← añadir UN función nueva: run_backtest_range
+tests/unit/backtest/test_runner.py            ← añadir tests de run_backtest_range
+tests/unit/test_run_wf_helpers.py             ← nuevo (TDD helpers del script)
+```
+
+Sin tocar: `run_is.py`, `equity_metrics.py`, `signal.py`, `sizing.py`, `conftest.py`, adaptadores.
+
+---
+
+**Paso 0 — Leer antes de escribir una línea:**
+
+```
+src/trading/backtest/runner.py                ← leer ENTERO. Localizar _OOS_START y la validación
+                                                que lo usa. Entender qué guard impide operar en OOS.
+src/trading/domain/metrics/equity_metrics.py  ← firma exacta de compute_performance
+tests/unit/backtest/test_runner.py            ← para no romper los 14 tests existentes
+tests/unit/test_run_is_helpers.py             ← patrón de tests existente para helpers de scripts
+```
+
+---
+
+**Implementación — extensión de `runner.py`:**
+
+Añadir **una sola función pública nueva** al final del módulo, sin tocar nada existente:
+
+```python
+def run_backtest_range(
+    tickers: list[str],
+    start: date,
+    end: date,
+    lookback_months: int = 12,
+    target_vol: float = 0.10,
+) -> tuple[pd.Series, PerformanceReport]:
+```
+
+Es idéntica a `run_backtest` **excepto** que no tiene el guard `end < _OOS_START`. Propósito exclusivo: walk-forward, donde el IS expanding puede cruzar 2022. Debe incluir un comentario inline: `# WF: no OOS guard — used exclusively by walk-forward runner`. La función existente `run_backtest` queda intacta (sus 14 tests no se tocan).
+
+---
+
+**Implementac
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Walk-forward TSMOM expanding window
+
+**Entregado:**
+- `scripts/run_wf.py` — script ejecutable con 5 helpers testeables: `get_ffr_on_date`, `classify_quarter_regime`, `generate_wf_windows`, `stationary_block_bootstrap_sharpe_ci`, `evaluate_gates`
+- `src/trading/backtest/runner.py` — añadida `run_backtest_range` (adición pura, cero líneas existentes modificadas)
+- `tests/unit/test_run_wf_helpers.py` — 19 tests nuevos
+- `tests/unit/backtest/test_runner.py` — 3 tests nuevos para `run_backtest_range`
+- `_FOMC_RATES` dict con 25 decisiones, cobertura hasta `2026-04-29`
+
+---
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| Suite completa ≥ 97 tests | ✅ 102 passed |
+| `ruff check` → 0 errores | ✅ |
+| `git diff runner.py` solo adición | ✅ |
+| CSV + JSON + PNG producidos | ✅ |
+| `paper_trading_authorized`, `stop_triggered` sin nulls | ✅ `False` / `True` |
+| 3 subplots con eje X de fechas | ✅ |
+| `max(_FOMC_RATES.keys()) >= 2026-03-01` | ✅ `2026-04-29` |
+| `statistical_warning` no vacío | ✅ |
+
+---
+
+**Resultados por ventana (tabla parcial — reporte cortado)**
+
+| Quarter | Régimen | Sharpe IS | Sharpe OOS | MaxDD OOS | gate_pass | stop_triggered |
+|---------|---------|-----------|------------|-----------|-----------|----------------|
+| 2022Q1 | normal | 1.615 | 0.472 | 2.1% | ❌ | ❌ |
+| 2022Q2 | normal | 1.598 | **−3.568** | 3.4% | ❌ | **✅ STOP** |
+| 2022Q3 | normal | 1.535 | **NaN** | 0.0% | ❌ | ❌ |
+| 2022Q4 | normal | 1.524 | **NaN** | 0.0% | ❌ | ❌ |
+| 2023Q1 | stress | 1.512 | 4.371 | 0.6% | ✅ | ❌ |
+| 2023Q2 | stress | 1.534 | 1.391 | 1.3% | ✅ | ❌ |
+| 2023Q3 | stress | 1.532 | −2.029 | 4.6% | ❌ | ❌ |
+| 2023Q4 | stress | 1.468 | 4.770 | 1.3% | ✅ | ❌ |
+
+**`paper_trading_authorized: False` · `stop_triggered: True`** (disparado en 2022Q2)
+
+---
+
+**Desviaciones del plan**
+
+El resumen de Claude Code fue truncado — la tabla de resultados se corta en 2023Q4 y no tengo las ventanas 2024–2026. Los criterios de aceptación están en verde según el resumen, pero **no puedo confirmar los valores completos de las 16–17 ventanas esperadas**. Esto no bloquea la aceptación si el PO puede leer el CSV directamente, pero debo notificarlo.
+
+---
+
+**Deuda técnica / Riesgos descubiertos**
+
+Hay dos señales que exigen diagnóstico antes de que el PO tome decisiones sobre rediseño:
+
+1. **NaN Sharpe en 2022Q3 y 2022Q4.** MaxDD = 0.0% en ambas ventanas indica que la equity slice está vacía o es una serie constante, no que no hubo pérdidas. Posible causa: el slice `equity_full.loc[oos_start:oos_end]` no encuentra filas si los índices son `date` en lugar de `datetime`, o si `run_backtest_range` ya trimma el warmup internamente y esas ventanas quedan vacías. Con retornos NaN, `evaluate_gates` no dispara stop aunque debería revisarse si el comportamiento es el correcto o es un bug silencioso.
+
+2. **Sharpe −3.568 en 2022Q2.** Con sólo ~63 días hábiles y un mercado con alta volatilidad en ese trimestre (SPY −16%, TLT −12% simultáneamente), un Sharpe de −3.568 es plausible pero extremo. No sospecho bug numérico, pero sí que el bootstrap CI de esa ventana debería ser muy ancho — si está en el PNG, es la información de contexto más relevante del gráfico.
+
+3. **Clasificación de régimen 2022Q3–Q4 como "normal".** Es matemáticamente correcta con la regla FFR > 4.0% estricto (Q3 terminó con FFR 3.25%; Q4 cruzó 4.0% solo el 3-Nov con exactamente 4.00% — *no* > 4.00% — y 4.50% el 15-Dic, ~12 días hábiles ≈ 19% < 40%). La regla funciona como se diseñó. Pero el equipo debe ser consciente de que 2022Q3–Q4 evaluado como "normal" con retornos NaN es una combinación que puede estar enmascarando el comportamiento más duro de la estrategia.
+
+---
+
+**Próximo paso recomendado**
+
+Antes de que el PO emita veredicto, recomiendo un micro-diagnóstico de los NaN en Q3–Q4 2022: ejecutar un one-liner que confirme si el equity slice tiene datos o está vacío en esas ventanas. Si está vacío, hay un bug de indexación que invalida parcialmente el walk-forward. Si tiene datos pero el Sharpe es NaN por std=0 o algún motivo numérico, es distinto.
+
+El stop_triggered en 2022Q2 es real y la conclusión metodológica es clara: **TSMOM sobre SPY+TLT+GLD no pasa los gates en régimen normal Q2 2022**. Pero antes de concluir "rediseño", necesitamos saber si los dos trimestres con NaN son datos ausentes o bug — porque si son bug, el veredicto está incompleto.
+
+**PO: los 8 criterios de forma están cumplidos. Antes de emitir veredicto sobre paper trading, te recomiendo pedir el diagnóstico de los NaN. El stop ya está disparado independientemente, pero la calidad del diagnóstico importa para decidir qué rediseñar.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 8 criterios que definí están cumplidos:
+
+1. ✅ 102 passed (≥97 exigidos)
+2. ✅ `ruff check` — 0 errores
+3. ✅ `git diff runner.py` — solo adición de `run_backtest_range`, cero líneas existentes tocadas
+4. ✅ CSV + JSON + PNG producidos sin excepción
+5. ✅ `paper_trading_authorized: False` · `stop_triggered: True` — ningún null
+6. ✅ 3 subplots con eje X de fechas etiquetadas (2022Q1…2026Q2)
+7. ✅ `max(_FOMC_RATES.keys()) = 2026-04-29` — cobertura completa
+8. ✅ `statistical_warning` presente y no vacío
+
+**Veredicto metodológico (pre-registrado, inmutable):** `stop_triggered = True` disparado en 2022Q2 (Sharpe OOS −3.568 en régimen normal). `paper_trading_authorized = False`. TSMOM sobre SPY+TLT+GLD **no pasa a paper trading**. Este veredicto es firme independientemente del diagnóstico de los NaN.
+
+**Deuda que registro y que bloquea el debate de rediseño:** los NaN en 2022Q3 y 2022Q4 (MaxDD = 0.0%) son una señal de bug de indexación, no de ausencia real de actividad. Antes de cualquier debate sobre qué rediseñar, el TL debe confirmar si el equity slice de esas ventanas tiene observaciones o está vacío. Si está vacío, el walk-forward tiene dos ventanas del período de estrés más relevante sin calcular — eso no cambia el veredicto pero sí afecta el diagnóstico de *por qué* la estrategia falla. No acepto una propuesta de rediseño basada en resultados incompletos.
+
+TL, micro-diagnóstico de los NaN primero. Luego debatimos qué rediseñar.
+
+_Sesión de ejecución de Claude Code: `301b0cfc`_
+
+---

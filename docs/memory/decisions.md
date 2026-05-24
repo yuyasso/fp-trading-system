@@ -321,3 +321,61 @@ Fix trivial, bien acotado, criterios verificables sin ambigüedad. Una línea en
 TL, luz verde.
 
 ---
+
+## 2026-05-25 01:03 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Walk-forward TSMOM (v2, post-revisión del Jefe)**
+
+**En una frase:** validamos si el Sharpe IS 1.61 es alpha transferible ejecutando un walk-forward expanding window trimestral no solapado sobre 2022–2026, con régimen pre-especificado via dict FOMC hardcodeado y stop-rule binaria fijada antes de ver un solo número OOS.
+
+---
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Esquema | Expanding window, paso trimestral = OOS trimestral — **sin solapamiento** |
+| Ventanas OOS | ~16 trimestres independientes, 2022Q1 → 2026Q2 |
+| Fecha fin OOS | `_OOS_END = date(2026, 4, 30)` — hardcodeada, con verificación de que Yahoo devuelve datos hasta esa fecha antes de operar |
+| Parámetros | Lookback=12, target_vol=0.10, λ=0.94 — fijos, cero re-optimización |
+| Detección de régimen | Dict FOMC hardcodeado con fechas y tasas exactas. Régimen de estrés = FFR > 4% durante ≥40% de los días hábiles del trimestre — calculable determinísticamente |
+| Bandas de confianza | Block bootstrap estacionario (Politis-Romano) por ventana — **contexto en el reporte, no criterio de stop-rule** |
+
+---
+
+**Criterios de validación (pre-registrados, inmutables):**
+
+| Gate | Condición | Resultado si falla |
+|---|---|---|
+| Régimen normal | Sharpe OOS > 0.8, DD < 15%, ratio OOS/IS > 0.35 | Parar, reformular universo o señal |
+| Régimen de estrés (FFR > 4%) | Sharpe OOS > −0.5, DD < 20% | Aceptable — no dispara stop |
+| Stop absoluto | Sharpe OOS < 0.3 en cualquier ventana de régimen normal | Debate de rediseño inmediato |
+| Autorización paper trading | Todos los gates verdes + ninguna ventana normal con DD > 15% | Go |
+
+---
+
+**Riesgos que vigilo:**
+- **Frontera de régimen inamovible:** el dict FOMC y el umbral FFR > 4% quedan fijados ahora. Cualquier ajuste post-hoc de la frontera para mejorar sub-períodos es rechazo directo.
+- **Promediado silencioso:** el reporte debe desglosar resultados por bloque de régimen. Agregado sin desglose = entrega rechazada.
+- **Bootstrap i.i.d.:** si el TL implementa bootstrap simple en lugar de block bootstrap estacionario, las bandas son ficticias y las elimino del reporte. El contexto informativo incorrecto es peor que no tenerlo.
+- **Scope creep:** sensibilidad paramétrica (lookback≠12, λ≠0.94) es análisis separado y posterior — fuera del scope de este sprint.
+
+TL, tres preguntas antes de planificar: (1) ¿tienes acceso al histórico de decisiones FOMC desde 2022 para construir el dict, o necesitas que A1/A2 lo aporten como dato? (2) ¿el adaptador Yahoo actual soporta consulta hasta `_OOS_END` sin modificación? (3) ¿el block bootstrap lo implementas en el script de análisis o en `equity_metrics.py`? Confirma o señala bloqueante.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Los tres puntos que rechacé están resueltos: solapamiento eliminado (step = OOS = trimestral), fecha fin fijada (`2026-04-30`), y fuente de régimen resuelta sin dependencia externa (dict FOMC hardcodeado). El diseño metodológico es sólido — parámetros fijos, umbrales pre-registrados antes de ver datos, y stop-rule clara.
+
+Las tres preguntas del PO al TL son operativas de planificación, no decisiones de producto abiertas. Respondo yo para no dejar nada flotando:
+
+1. **Dict FOMC:** A1 lo propuso, A1 lo aporta como tabla en el planning. Son ~15 fechas públicas — no es bloqueante, es 5 minutos de trabajo.
+2. **Yahoo hasta `2026-04-30`:** el adaptador ya soporta cualquier rango — el TL lo confirma en planning, no necesita decisión de nadie.
+3. **Block bootstrap:** va en el script de walk-forward, no en `equity_metrics.py` — es análisis específico de este ejercicio, no lógica de dominio reutilizable.
+
+TL, luz verde. Planifica.
+
+---

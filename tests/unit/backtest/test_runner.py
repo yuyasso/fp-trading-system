@@ -21,6 +21,7 @@ from trading.backtest.runner import (
     _OOS_START,
     _compute_monthly_signal,
     run_backtest,
+    run_backtest_range,
 )
 from trading.domain.metrics.equity_metrics import Frequency, PerformanceReport
 
@@ -398,3 +399,81 @@ def test_metrics_delegated_to_equity_metrics() -> None:
     )
     # Sentinel values can only be present if delegated — runner doesn't recalculate
     assert report.sharpe == 99.0
+
+
+# ---------------------------------------------------------------------------
+# Tests: run_backtest_range (no OOS guard)
+# ---------------------------------------------------------------------------
+
+
+def _run_range_with_mock(
+    mock_data: pd.DataFrame,
+    tickers: list[str] | None = None,
+    start: date = _IS_START,
+    end: date = _IS_END,
+    lookback_months: int = 12,
+    target_vol: float = 0.10,
+) -> tuple[pd.Series, PerformanceReport]:
+    if tickers is None:
+        tickers = list(mock_data.index.get_level_values("ticker").unique())
+    with patch("trading.backtest.runner.YFinanceAdapter") as MockCls:
+        MockCls.return_value.load_ohlcv_daily.return_value = mock_data
+        return run_backtest_range(tickers, start, end, lookback_months, target_vol)
+
+
+def test_run_backtest_range_accepts_post_oos_start() -> None:
+    """run_backtest_range must NOT raise for end dates after 2022-01-01."""
+    n = 500
+    mock_data = _default_mock(n)
+    # Build mock data with dates that span into OOS
+    closes = np.linspace(100.0, 200.0, n)
+    opens = closes + 1.0
+    dates_oos = [d.date() for d in pd.date_range("2020-01-02", periods=n, freq="B")]
+    midx = pd.MultiIndex.from_arrays(
+        [dates_oos, ["SPY"] * n], names=["date", "ticker"]
+    )
+    mock_data_oos = pd.DataFrame(
+        {
+            "open": opens,
+            "high": np.maximum(opens, closes) * 1.002,
+            "low": np.minimum(opens, closes) * 0.998,
+            "close": closes,
+            "volume": np.ones(n) * 1_000_000.0,
+        },
+        index=midx,
+    )
+    with patch("trading.backtest.runner.YFinanceAdapter") as MockCls:
+        MockCls.return_value.load_ohlcv_daily.return_value = mock_data_oos
+        # end is 2023-03-31 — this is OOS. run_backtest_range must not raise.
+        equity, report = run_backtest_range(
+            ["SPY"], date(2020, 1, 1), date(2023, 3, 31)
+        )
+    assert isinstance(equity, pd.Series)
+    assert isinstance(report, PerformanceReport)
+
+
+def test_run_backtest_range_same_output_as_run_backtest_for_is_period() -> None:
+    """For IS-only date ranges, run_backtest_range and run_backtest produce identical equity."""
+    n = 500
+    closes = np.linspace(100.0, 200.0, n)
+    opens = closes + 1.0
+    mock_data = _make_mock_ohlcv(["SPY"], closes, opens)
+
+    is_end = date(2020, 12, 31)  # well within IS
+
+    with patch("trading.backtest.runner.YFinanceAdapter") as MockCls:
+        MockCls.return_value.load_ohlcv_daily.return_value = mock_data
+        equity_orig, _ = run_backtest(["SPY"], _IS_START, is_end)
+
+    with patch("trading.backtest.runner.YFinanceAdapter") as MockCls:
+        MockCls.return_value.load_ohlcv_daily.return_value = mock_data
+        equity_range, _ = run_backtest_range(["SPY"], _IS_START, is_end)
+
+    pd.testing.assert_series_equal(equity_orig, equity_range)
+
+
+def test_run_backtest_original_guard_still_raises() -> None:
+    """run_backtest (not run_backtest_range) must still raise ValueError for OOS start."""
+    with patch("trading.backtest.runner.YFinanceAdapter"):
+        with pytest.raises(ValueError, match="OOS"):
+            run_backtest(["SPY"], date(2023, 1, 1), date(2023, 12, 31))
