@@ -231,3 +231,48 @@ Sprint trivial, spec cerrada por los 8 tests existentes, sin decisiones de dise�
 TL, luz verde. Ejecuta.
 
 ---
+
+## 2026-05-25 00:38 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Ejecución real del runner reparado**
+
+**En una frase:** ejecutamos `python scripts/run_is.py` contra Yahoo Finance para obtener el JSON limpio definitivo y traer los números reales al equipo — nada más.
+
+---
+
+**Lo que autorizo:**
+
+| Elemento | Decisión |
+|---|---|
+| Acción | `python scripts/run_is.py` desde `~/development/fp-trading-system` |
+| Modificaciones al código | Ninguna |
+| Output requerido | JSON generado + stdout capturado |
+
+---
+
+**Criterios de aceptación — no acepto sin:**
+1. JSON con las 4 claves `"2005-08"`, `"2009-13"`, `"2014-18"`, `"2019-21"` presentes con valores **numéricos** (no `null`).
+2. `n_rebalances_is` presente y reportado.
+3. Si algún sub-período devuelve `null`, el TL debe diagnosticar qué activo lo causa antes de cerrar el sprint — no es aceptable un `null` silencioso.
+
+---
+
+**Riesgos:**
+- GLD con datos irregulares en los primeros meses de 2005 (A2 lo identifica correctamente). Si el sub-período `"2005-08"` devuelve `null`, necesito diagnóstico, no un número inventado.
+- Los números pre-calculados del CSV con bug quedan invalidados hasta que el JSON limpio los confirme o los corrija. No usamos esos números para ninguna decisión.
+
+TL, un paso de ejecución. Sin bloqueantes.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta idéntica a la que ya validé el 2026-05-25 00:25 — mismo comando, mismo script, mismas cero modificaciones. La única diferencia es que ahora el script regenerado incluye el fix `.dropna()`. No hay decisión de diseño nueva.
+
+El criterio #3 del PO (diagnóstico si hay `null`) es razonable y no añade ambigüedad: si el JSON sale limpio, sprint cerrado; si sale con `null`, el TL diagnostica antes de aceptar. No es una condición flotante, es un gate binario.
+
+TL, ejecuta.
+
+---

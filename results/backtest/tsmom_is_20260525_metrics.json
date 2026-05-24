@@ -1,0 +1,19 @@
+{
+  "sharpe_is": null,
+  "max_drawdown": null,
+  "calmar_ratio": null,
+  "n_rebalances_is": 192,
+  "warmup_days_excluded": 252,
+  "statistical_warning": "IS Sharpe has insufficient statistical power for strategy adoption decisions. ~17 years IS, monthly rebalancing on 3 assets = O(200) rebalances. Not a decision criterion.",
+  "subperiod_sharpes": {
+    "2005-08": 1.4949013844083858,
+    "2009-13": 1.7334448330560985,
+    "2014-18": 1.1831303144197929,
+    "2019-21": 2.2115126051985987
+  },
+  "asset_attribution": {
+    "GLD": 0.000334207149823134,
+    "SPY": 0.0003630895184199013,
+    "TLT": 0.00020816076686074048
+  }
+}

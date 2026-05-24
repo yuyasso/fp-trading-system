@@ -334,3 +334,163 @@ Entrega validada contra los 5 criterios que definí:
 _Sesión de ejecución de Claude Code: `b128c4bf`_
 
 ---
+
+## 2026-05-25 00:43 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Ejecutar `python scripts/run_is.py` contra Yahoo Finance, capturar el JSON generado y reportar los 6 números reales al equipo.
+
+---
+
+**Archivos a crear/modificar:** Ninguno. Sprint de ejecución pura — cero modificaciones al código.
+
+---
+
+**Implementación:**
+
+Este sprint no implementa nada. El script ya existe y está validado (80/80 tests). El trabajo es:
+
+**Paso 1 — Ejecutar el script:**
+```bash
+cd ~/development/fp-trading-system
+python scripts/run_is.py
+```
+Capturar stdout completo.
+
+**Paso 2 — Leer el JSON generado:**
+```bash
+cat results/backtest/tsmom_is_$(date +%Y%m%d)_metrics.json
+```
+Si el fichero lleva fecha de hoy, leerlo directamente. Si hay un fichero previo del mismo día, leer el más reciente por timestamp.
+
+**Paso 3 — Diagnóstico si hay `null`:**
+Si cualquiera de las 4 claves de sub-período devuelve `null`, ejecutar diagnóstico:
+```python
+import yfinance as yf
+df = yf.download(["SPY", "TLT", "GLD"], start="2005-01-01", end="2022-01-01", auto_adjust=True)
+print(df["Close"].isna().sum())
+print(df["Close"].isna().any(axis=1).sum())
+```
+Identificar qué activo y en qué rango de fechas tiene datos faltantes.
+
+---
+
+**Tests:** No aplica — sprint de ejecución. Los 80/80 tests ya están en verde.
+
+---
+
+**Criterios de aceptación:**
+
+| # | Criterio |
+|---|----------|
+| 1 | JSON contiene las 4 claves `"2005-08"`, `"2009-13"`, `"2014-18"`, `"2019-21"` con valores **numéricos** (no `null`) |
+| 2 | `n_rebalances_is` presente en el JSON con valor entero > 0 |
+| 3 | Si algún sub-período devuelve `null`: diagnóstico de activo y rango de fechas causante reportado explícitamente antes de cerrar |
+
+---
+
+**Comandos de validación:**
+
+```bash
+# Ejecución principal
+cd ~/development/fp-trading-system
+python scripts/run_is.py
+
+# Leer JSON (ajustar fecha si necesario)
+cat results/backtest/tsmom_is_$(date +%Y%m%d)_metrics.json
+
+# Verificar que no hay nulls en sub-períodos
+python -c "
+import json, glob, os
+files = sorted(glob.glob('results/backtest/*_metrics.json'))
+with 
+
+### Reporte de entrega del Tech Lead
+
+**Entregado:** Ejecución de `python scripts/run_is.py` contra Yahoo Finance real. Sin código nuevo — sprint de ejecución pura. El script ya existía y estaba validado.
+
+---
+
+**Validaciones**
+
+| Criterio del PO | Estado |
+|---|---|
+| 4 claves sub-período con valores numéricos (no `null`) | ✅ |
+| `n_rebalances_is` entero > 0 | ✅ 192 |
+| Diagnóstico si hay `null` en sub-períodos | ✅ ninguno |
+
+---
+
+**Los números reales (del JSON limpio)**
+
+| Métrica | Valor |
+|---|---|
+| Sharpe IS total | 1.6145 |
+| Max Drawdown | −5.72% |
+| Calmar | 1.3288 |
+| n_rebalances | 192 |
+| Sharpe 2005–08 | 1.4949 |
+| Sharpe 2009–13 | 1.7334 |
+| Sharpe 2014–18 | 1.1831 |
+| Sharpe 2019–21 | 2.2115 |
+
+Atribución diaria media: SPY 0.0363%, GLD 0.0334%, TLT 0.0208%.
+
+---
+
+**Desviaciones del plan**
+
+Una, significativa: los campos `sharpe_is`, `max_drawdown` y `calmar_ratio` del JSON de nivel superior siguen saliendo `null`. La causa es que `run_backtest` pasa la equity curve *completa* (warmup incluido) a `compute_performance`, mientras que `run_is.py` sí aplica el trim/dropna antes de calcular los sub-períodos. Los 6 números que reporto son correctos — calculados sobre la curva trimmed — pero el JSON tiene inconsistencia interna: los tres campos del nivel raíz son `null` y los sub-período son numéricos.
+
+Esto no era un defecto anticipado en el plan. Los criterios del PO sólo exigían que los sub-períodos fueran no-null, y lo son. Pero el JSON está roto en su parte superior.
+
+---
+
+**Deuda técnica**
+
+El bug del JSON (campos raíz `null`) requiere pasar `equity_trimmed` a `compute_performance` en el bloque `__main__` de `run_is.py`, no la curva raw. Es un fix de 1 línea en `run_is.py`. No toca `runner.py`.
+
+---
+
+**Riesgos descubiertos**
+
+Ninguno nuevo en ejecución. GLD desde 2005 sin gaps, los datos de Yahoo llegaron limpios.
+
+---
+
+**Próximo paso recomendado**
+
+Dos opciones en paralelo:
+
+1. **Fix inmediato (micro-sprint):** corregir el JSON para que los 3 campos raíz sean numéricos. 1 línea, 5 minutos. Cierra la deuda antes de walk-forward.
+2. **Walk-forward:** los umbrales pre-registrados están superados con holgura (peor sub-período 2014–18: 1.18 >> 0.3; TLT al 22% del retorno total << 60%). Técnicamente estamos listos para planificarlo.
+
+Mi recomendación: fix del JSON primero (criterio de calidad básico), luego walk-forward. Pero si el PO considera el bug cosmético dado que los números reales están disponibles, podemos ir directamente a walk-forward y registrar el fix como deuda menor.
+
+**PO: los 3 criterios de aceptación del sprint están cumplidos. La decisión de si el JSON con campos raíz `null` bloquea o no la aceptación es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 3 criterios que definí están cumplidos:
+
+1. ✅ Las 4 claves de sub-período tienen valores numéricos — ningún `null`.
+2. ✅ `n_rebalances_is`: 192, entero > 0.
+3. ✅ Sin sub-períodos nulos, diagnóstico no necesario.
+
+**Sobre el bug de los campos raíz (`sharpe_is`, `max_drawdown`, `calmar_ratio` = `null`):** mis criterios no lo cubrían explícitamente — pedí que los sub-períodos fueran numéricos, y lo son. No rechazo la entrega por ello. Pero **este bug bloquea el siguiente sprint**: no podemos entrar en walk-forward con un JSON de métricas con campos raíz en `null`. Es un fix de 1 línea en `run_is.py` (pasar `equity_trimmed` a `compute_performance`, no la curva raw) y lo priorizo como micro-sprint previo.
+
+**Los números reales quedan registrados como base para walk-forward:**
+- Sharpe IS: 1.6145 · Max DD: −5.72% · Calmar: 1.3288 · n_rebalances: 192
+- Sub-períodos: 1.49 / 1.73 / 1.18 / 2.21 — todos por encima del umbral 0.3
+- TLT: 22% del retorno diario medio — muy por debajo del límite 60%
+
+**Ambos umbrales pre-registrados están superados. La señal para walk-forward es verde, pendiente del micro-sprint de fix del JSON.**
+
+TL, propongo micro-sprint inmediato: 1 línea, criterio único — JSON sin ningún `null` en campos raíz. Luego walk-forward.
+
+_Sesión de ejecución de Claude Code: `c0d242d9`_
+
+---
