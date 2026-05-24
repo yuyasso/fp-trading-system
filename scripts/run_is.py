@@ -24,7 +24,7 @@ from trading.backtest.runner import (
     _pivot_ohlcv,
     run_backtest,
 )
-from trading.domain.metrics.equity_metrics import PerformanceReport
+from trading.domain.metrics.equity_metrics import PerformanceReport, compute_performance
 
 # ---------------------------------------------------------------------------
 # Module-level constants
@@ -201,6 +201,7 @@ if __name__ == "__main__":
 
     # Exclude EWMA warmup period then drop trailing NaN from open.shift(-1)
     equity_trimmed = equity_curve.iloc[_LOOKBACK_MONTHS * 21 :].dropna()
+    report_trimmed = compute_performance(equity_trimmed)
 
     subperiod_sharpes = compute_subperiod_sharpes(equity_trimmed, _SUB_PERIODS)
 
@@ -220,7 +221,7 @@ if __name__ == "__main__":
         col: float(attribution_df[col].mean()) for col in attribution_df.columns
     }
     metrics = _make_metrics(
-        report=report,
+        report=report_trimmed,
         n_rebalances=n_rebalances,
         warmup_days=_LOOKBACK_MONTHS * 21,
         subperiod_sharpes=subperiod_sharpes,
@@ -233,9 +234,9 @@ if __name__ == "__main__":
     _plot_equity_drawdown(equity_trimmed, out_dir / f"tsmom_is_{today}.png")
 
     # Stdout summary
-    sharpe_is = report.sharpe
-    max_dd = report.max_drawdown
-    calmar = report.calmar
+    sharpe_is = report_trimmed.sharpe
+    max_dd = report_trimmed.max_drawdown
+    calmar = report_trimmed.calmar
     print(f"Sharpe IS: {sharpe_is:.3f}")
     print(f"Max Drawdown: {max_dd:.1%}")
     print(f"Calmar: {calmar:.3f}")

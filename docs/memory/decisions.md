@@ -276,3 +276,48 @@ El criterio #3 del PO (diagnóstico si hay `null`) es razonable y no añade ambi
 TL, ejecuta.
 
 ---
+
+## 2026-05-25 00:51 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Micro-sprint: fix JSON campos raíz**
+
+**En una frase:** corregimos el único bug pendiente en `run_is.py` — pasar `equity_trimmed` a `compute_performance` en el bloque `__main__` — para cerrar el JSON limpio definitivo antes de planificar walk-forward.
+
+---
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Fichero | `scripts/run_is.py` únicamente |
+| Cambio | Sustituir la llamada a `compute_performance` con `equity_raw` por `equity_trimmed` en el bloque `__main__` |
+| Runner | Intocable — sin cambios de firma ni parámetros nuevos |
+| Ejecución | El script debe ejecutarse tras el fix y producir el JSON limpio en `results/backtest/` |
+
+---
+
+**Criterios de aceptación — no acepto sin:**
+1. `sharpe_is`, `max_drawdown` y `calmar_ratio` en el JSON raíz con valores **numéricos** (no `null`).
+2. `sharpe_is` del JSON coincide numéricamente con el Sharpe calculado sobre `equity_trimmed` — si difieren, hay una segunda fuente de NaN sin identificar y el sprint se rechaza.
+3. Suite completa sin regresiones (≥ 80 tests) — el fix no rompe nada.
+4. `git diff runner.py` vacío — verificación explícita.
+
+---
+
+**Riesgos identificados:**
+- **Ningún riesgo técnico real en el fix**: A2 confirma que `compute_performance` sobre 4.025 observaciones limpias no puede devolver `None`. El único riesgo es inversión accidental del orden o tocar `runner.py` — los criterios 2 y 4 lo detectan.
+- **Para el diseño del walk-forward** (no urgente ahora, pero registro el punto de A2): el régimen 2022–2025 implica correlación SPY/TLT positiva y subidas de tipos agresivas. El walk-forward debe cubrir explícitamente ese período — es el escenario que puede romper TSMOM sobre este universo. Lo formalizo como requisito cuando lleguemos ahí.
+
+TL, encargo trivial. Sin bloqueantes.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Fix trivial, bien acotado, criterios verificables sin ambigüedad. Una línea en `run_is.py`, runner intocable, y el criterio #2 del PO (coincidencia numérica del Sharpe) es el safety net correcto contra sorpresas.
+
+TL, luz verde.
+
+---

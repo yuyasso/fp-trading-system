@@ -494,3 +494,126 @@ TL, propongo micro-sprint inmediato: 1 línea, criterio único — JSON sin ning
 _Sesión de ejecución de Claude Code: `c0d242d9`_
 
 ---
+
+## 2026-05-25 00:53 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Corregir `scripts/run_is.py` para que los campos raíz `sharpe_is`, `max_drawdown` y `calmar_ratio` del JSON sean numéricos, pasando `equity_trimmed` a `compute_performance` en el bloque `__main__`, y ejecutar el script para producir el JSON limpio definitivo.
+
+---
+
+**Archivos a crear/modificar:**
+```
+scripts/run_is.py    ← modificar (una línea en bloque __main__)
+```
+Sin tocar: `runner.py`, tests, `conftest.py`, ni ningún otro archivo.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Leer antes de modificar:**
+```
+scripts/run_is.py                              ← leer ENTERO, localizar el bloque __main__
+src/trading/domain/metrics/equity_metrics.py   ← confirmar firma de compute_performance
+```
+
+**Paso 1 — Localizar el bug:**
+En el bloque `if __name__ == "__main__":`, hay una llamada a `compute_performance` (o `_make_metrics`) que recibe la equity curve **antes** del trim/dropna. Identificarla con:
+```bash
+grep -n "compute_performance\|_make_metrics\|equity_raw\|equity_curve" scripts/run_is.py
+```
+
+**Paso 2 — El fix:**
+Sustituir la variable que se pasa a `compute_performance` (o a `_make_metrics` si ese es el punto de entrada) por `equity_trimmed` — la misma serie ya limpia que se usa para los sub-períodos. El orden de operaciones en `__main__` debe quedar:
+```
+1. equity_curve, report = run_backtest(...)
+2. equity_trimmed = equity_curve.iloc[_LOOKBACK_MONTHS * 21:].dropna()
+3. metrics = _make_metrics(equity_trimmed, ...)   ← equity_trimmed, no equity_curve
+4. subperiod_sharpes = compute_subperiod_sharpes(equity_trimmed, ...)
+5. ... resto del flujo sin cambios
+```
+
+**Paso 3 — Ejecutar el script:**
+```bash
+cd ~/development/fp-trading-system
+python scripts/run_is.py
+```
+
+---
+
+**Tests:**
+No se añaden tests nuevos — el fix es de un único punto de llamada en `__main__`, no en lógica de dominio testeable. Los 8 tests existentes de `test_run_is_helpers.py` y los 80 de la suite completa deben seguir en verde sin modificación.
+
+---
+
+**Criterios de aceptación:**
+
+| # | Crite
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Micro-sprint: fix JSON campos raíz
+
+**Entregado:** Una modificación en `scripts/run_is.py` — el bloque `__main__` ahora llama a `compute_performance(equity_trimmed)` en lugar de pasar la equity raw con warmup. El JSON raíz queda limpio y consistente con los sub-períodos.
+
+---
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| `sharpe_is`, `max_drawdown`, `calmar_ratio` numéricos (no `null`) | ✅ |
+| `sharpe_is` = 1.6145 (tol ±0.001) | ✅ 1.6144867… |
+| Suite completa ≥ 80 tests sin regresiones | ✅ 80 passed |
+| `git diff runner.py` vacío | ✅ |
+
+---
+
+**Desviaciones del plan**
+
+Ninguna. El fix fue exactamente 1 punto de llamada en `__main__`, sin tocar runner ni tests. Claude Code reporta que la causa raíz era que `run_backtest` devuelve internamente un `report` calculado sobre la curva completa — el fix introduce `report_trimmed = compute_performance(equity_trimmed)` en el script, no en el runner. Correcto: resuelve el síntoma en el lugar correcto sin reabrir el contrato del runner.
+
+---
+
+**Deuda técnica**
+
+La dependencia de `compute_asset_attribution` sobre helpers `_`-prefixed de `runner.py` sigue activa. Preexistente, registrada, no empeora. No hay deuda nueva en este sprint.
+
+---
+
+**Riesgos descubiertos**
+
+Ninguno. El diagnóstico de A2 era correcto: `compute_performance` sobre 4.025 observaciones limpias no puede devolver `None`.
+
+---
+
+**Próximo paso recomendado**
+
+Los números IS son definitivos y el JSON está limpio. Los umbrales pre-registrados están superados — peor sub-período 1.18, TLT al 22%. La señal para walk-forward es verde.
+
+El punto que A2 dejó sobre la mesa es el que debe diseñar el walk-forward: 2022–2025 tiene correlación SPY/TLT positiva y subidas de tipos agresivas — el régimen que puede romper TSMOM sobre este universo. El walk-forward no puede limitarse a "¿el Sharpe OOS es > 0.8?"; necesita cubrir explícitamente ese período como escenario de estrés.
+
+**PO: los 4 criterios de aceptación están cumplidos. La decisión es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 4 criterios que definí están cumplidos sin excepción:
+
+1. ✅ `sharpe_is`, `max_drawdown`, `calmar_ratio` en el JSON raíz con valores numéricos — ningún `null`.
+2. ✅ `sharpe_is` = 1.6144867… — coincidencia con Sharpe sobre `equity_trimmed` dentro de la tolerancia ±0.001.
+3. ✅ Suite completa: 80 passed, sin regresiones.
+4. ✅ `git diff runner.py` vacío — runner intocable.
+
+**Deuda técnica registrada** (no penaliza): dependencia de `compute_asset_attribution` sobre helpers `_`-prefixed de `runner.py`. Preexistente, no empeora, queda en el radar para cuando se limpie el paquete.
+
+**Estado del JSON IS definitivo:** Sharpe 1.6145 · Max DD −5.72% · Calmar 1.3288 · n_rebalances 192 · sub-períodos 1.49/1.73/1.18/2.21. Todos los umbrales pre-registrados superados. TLT al 22% del retorno total.
+
+**Siguiente paso: walk-forward.** El diseño debe cubrir explícitamente 2022–2025 como escenario de estrés (correlación SPY/TLT positiva, subidas de tipos). A1 y A2, propongo una ronda de análisis breve sobre qué ventanas y métricas debe exigir el walk-forward antes de que sintetice. ¿Arrancamos?
+
+_Sesión de ejecución de Claude Code: `088d4bce`_
+
+---
