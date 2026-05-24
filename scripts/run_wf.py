@@ -48,7 +48,7 @@ _OOS_START = date(2022, 1, 1)
 _OOS_END = date(2026, 4, 30)  # last complete month with available data
 _LOOKBACK_MONTHS = 12
 _TARGET_VOL = 0.10
-_TICKERS = ["SPY", "TLT", "GLD"]
+_TICKERS = ["SPY", "TLT", "GLD", "DBC", "UUP"]
 _STRESS_FFR_THRESHOLD = 4.0  # FFR > 4% → stress regime
 _STRESS_MIN_FRACTION = 0.40  # ≥40% of business days in quarter must be stress
 _BOOTSTRAP_N = 1000
@@ -330,6 +330,54 @@ def evaluate_gates(
 
 
 # ---------------------------------------------------------------------------
+# Diagnostic: 2022Q2 momentum signal check
+# ---------------------------------------------------------------------------
+
+
+def compute_diagnostic_2022q2(close_prices: pd.DataFrame) -> dict:
+    """
+    Post-hoc check: which tickers had a positive 12m momentum signal at start of 2022Q2.
+
+    Parameters
+    ----------
+    close_prices : pd.DataFrame
+        DataFrame with ``datetime.date`` index and ticker columns.
+        Must cover at least 2021-04-01 to 2022-04-01.
+
+    Returns
+    -------
+    dict with keys:
+        tickers_with_positive_signal : list[str]  (may be empty, never null)
+        note                         : str
+    """
+    target = date(2022, 4, 1)
+    lookback = date(2021, 4, 1)
+
+    tickers_positive: list[str] = []
+    for ticker in close_prices.columns:
+        col = close_prices[ticker].dropna()
+        idx = col.index.tolist()
+
+        now_candidates = [d for d in idx if d >= target]
+        then_candidates = [d for d in idx if d >= lookback]
+        if not now_candidates or not then_candidates:
+            continue
+
+        price_now = float(col.loc[now_candidates[0]])
+        price_then = float(col.loc[then_candidates[0]])
+        if price_then > 0 and (price_now / price_then - 1) > 0:
+            tickers_positive.append(ticker)
+
+    return {
+        "tickers_with_positive_signal": sorted(tickers_positive),
+        "note": (
+            "Post-hoc check: tickers with positive 12m momentum signal"
+            " at start of 2022Q2"
+        ),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Internal plotting helper
 # ---------------------------------------------------------------------------
 
@@ -356,7 +404,7 @@ def _plot_wf_results(df: pd.DataFrame, output_path: Path) -> None:
     colors = ["#d62728" if r == "stress" else "#1f77b4" for r in df["regime"]]
 
     fig, axes = plt.subplots(3, 1, figsize=(max(12, len(df) * 0.7), 10), sharex=True)
-    fig.suptitle("TSMOM Walk-Forward Results (SPY+TLT+GLD)", fontsize=13)
+    fig.suptitle("TSMOM Walk-Forward Results (SPY+TLT+GLD+DBC+UUP)", fontsize=13)
 
     # --- Top: Sharpe OOS ---
     ax0 = axes[0]
@@ -579,6 +627,27 @@ if __name__ == "__main__":
     df_results.to_csv(csv_path, index=False)
     logger.info("CSV saved: %s", csv_path)
 
+    # --- Step 5.5: Diagnostic 2022Q2 ---
+    logger.info("Computing 2022Q2 diagnostic ...")
+    try:
+        diag_raw = YFinanceAdapter().load_ohlcv_daily(
+            _TICKERS, date(2021, 1, 1), date(2022, 6, 30)
+        )
+        diag_close = diag_raw["close"].unstack("ticker")
+        diag_close.index = pd.Index(
+            [d.date() if isinstance(d, pd.Timestamp) else d for d in diag_close.index]
+        )
+        diagnostic_2022q2 = compute_diagnostic_2022q2(diag_close)
+    except Exception as exc:
+        logger.warning("2022Q2 diagnostic failed: %s", exc)
+        diagnostic_2022q2 = {
+            "tickers_with_positive_signal": [],
+            "note": f"Post-hoc check failed: {exc}",
+        }
+    logger.info(
+        "2022Q2 diagnostic: %s", diagnostic_2022q2["tickers_with_positive_signal"]
+    )
+
     # --- Step 6: Summary JSON ---
     normal_mask = df_results["regime"] == "normal"
     stress_mask = df_results["regime"] == "stress"
@@ -623,6 +692,7 @@ if __name__ == "__main__":
         "sharpe_oos_stress_mean": _fmt(sharpe_stress_mean),
         "paper_trading_authorized": paper_trading_authorized,
         "statistical_warning": _STATISTICAL_WARNING,
+        "diagnostic_2022q2": diagnostic_2022q2,
     }
 
     json_path = results_dir / f"tsmom_wf_{today_str}_summary.json"

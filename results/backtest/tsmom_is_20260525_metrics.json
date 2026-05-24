@@ -1,19 +1,22 @@
 {
-  "sharpe_is": 1.6144867946934776,
-  "max_drawdown": -0.057237878614030964,
-  "calmar_ratio": 1.3288142319928198,
+  "sharpe_is": 1.647237514724791,
+  "max_drawdown": -0.04776489781829694,
+  "calmar_ratio": 1.3008267913364522,
   "n_rebalances_is": 192,
   "warmup_days_excluded": 252,
-  "statistical_warning": "IS Sharpe has insufficient statistical power for strategy adoption decisions. ~17 years IS, monthly rebalancing on 3 assets = O(200) rebalances. Not a decision criterion.",
+  "statistical_warning": "IS Sharpe has insufficient statistical power for strategy adoption decisions. ~17 years IS, monthly rebalancing on 5 assets = O(200) rebalances. Not a decision criterion.",
+  "universe_note": "Sub-period 2005-08 Sharpe for UUP is partial (~1yr data). DBC available from ~2006.",
   "subperiod_sharpes": {
-    "2005-08": 1.4948970223055127,
-    "2009-13": 1.7334465693365957,
-    "2014-18": 1.1831353228299735,
-    "2019-21": 2.211523006700637
+    "2005-08": 1.6376356015926707,
+    "2009-13": 1.4580136708942852,
+    "2014-18": 1.4240441013840677,
+    "2019-21": 2.564434058661577
   },
   "asset_attribution": {
+    "DBC": 0.00020457252020724006,
     "GLD": 0.000334207149823134,
-    "SPY": 0.0003630903136491992,
-    "TLT": 0.0002081609616634023
+    "SPY": 0.00036308968890379396,
+    "TLT": 0.00020816128920379064,
+    "UUP": 7.400008557115343e-05
   }
 }

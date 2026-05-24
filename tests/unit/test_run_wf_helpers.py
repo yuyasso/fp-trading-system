@@ -12,19 +12,16 @@ from datetime import date, timedelta
 
 import numpy as np
 import pandas as pd
-import pytest
 from run_wf import (
     _FOMC_RATES,
     _IS_START,
-    _STRESS_FFR_THRESHOLD,
-    _STRESS_MIN_FRACTION,
     classify_quarter_regime,
+    compute_diagnostic_2022q2,
     evaluate_gates,
     generate_wf_windows,
     get_ffr_on_date,
     stationary_block_bootstrap_sharpe_ci,
 )
-
 
 # ---------------------------------------------------------------------------
 # get_ffr_on_date
@@ -227,3 +224,69 @@ def test_evaluate_gates_normal_fail_ratio() -> None:
     # ratio = 1.0/5.0 = 0.20 < 0.35 → fail
     assert result["gate_pass"] is False
     assert result["stop_triggered"] is False
+
+
+# ---------------------------------------------------------------------------
+# compute_diagnostic_2022q2
+# ---------------------------------------------------------------------------
+
+
+def _make_close_prices_for_diagnostic() -> pd.DataFrame:
+    """
+    Synthetic close price DataFrame covering 2021-04 to 2022-05.
+
+    SPY: up  ~10% (positive signal)
+    TLT: down ~5% (no signal)
+    GLD: up  ~3% (positive signal)
+    DBC: up  ~20% (positive signal)
+    UUP: up  ~6% (positive signal)
+    """
+    start = date(2021, 4, 1)
+    end = date(2022, 5, 1)
+    bdays = [d.date() for d in pd.bdate_range(start, end)]
+
+    n = len(bdays)
+    rng = np.random.default_rng(7)
+    data = {
+        "SPY": 400.0 * np.cumprod(1 + rng.normal(0.0004, 0.005, n)),   # up ~10%
+        "TLT": 150.0 * np.cumprod(1 + rng.normal(-0.0002, 0.003, n)),  # down ~5%
+        "GLD": 170.0 * np.cumprod(1 + rng.normal(0.0001, 0.004, n)),   # slight up
+        "DBC": 20.0 * np.cumprod(1 + rng.normal(0.0008, 0.006, n)),    # up ~20%
+        "UUP": 21.0 * np.cumprod(1 + rng.normal(0.0002, 0.002, n)),    # up ~6%
+    }
+    return pd.DataFrame(data, index=pd.Index(bdays))
+
+
+def test_diagnostic_2022q2_returns_list() -> None:
+    """compute_diagnostic_2022q2 always returns a list (never null)."""
+    close = _make_close_prices_for_diagnostic()
+    result = compute_diagnostic_2022q2(close)
+    assert "tickers_with_positive_signal" in result
+    assert isinstance(result["tickers_with_positive_signal"], list)
+    assert "note" in result
+    assert isinstance(result["note"], str)
+
+
+def test_diagnostic_2022q2_correct_tickers() -> None:
+    """Tickers with price_2022-04-01 > price_2021-04-01 are included."""
+    # Build a deterministic DataFrame: SPY and DBC go up, TLT goes down.
+    tgt = date(2022, 4, 1)
+    lkb = date(2021, 4, 1)
+    idx = [lkb, date(2021, 10, 1), tgt, date(2022, 4, 15)]
+    df = pd.DataFrame(
+        {
+            "SPY": [100.0, 105.0, 110.0, 112.0],  # up
+            "TLT": [100.0, 98.0, 95.0, 94.0],     # down
+            "GLD": [100.0, 102.0, 103.0, 104.0],  # up
+            "DBC": [100.0, 110.0, 120.0, 121.0],  # up
+            "UUP": [100.0, 103.0, 106.0, 107.0],  # up
+        },
+        index=pd.Index(idx),
+    )
+    result = compute_diagnostic_2022q2(df)
+    positive = result["tickers_with_positive_signal"]
+    assert "SPY" in positive
+    assert "GLD" in positive
+    assert "DBC" in positive
+    assert "UUP" in positive
+    assert "TLT" not in positive

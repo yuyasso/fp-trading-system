@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-25 01:56** — Sprint aceptado · Sesión `c73bf0b5` · ** Ejecutar TSMOM walk-forward v2 sobre universo ampliado SPY+TLT+GLD+DBC+UUP, actualizando los scripts IS y WF con los nuevos tickers, añadiendo etiquetado de IS truncado para UUP, y el check diagnós
+
 - **2026-05-25 01:20** — Sprint aceptado · Sesión `301b0cfc` · ** Implementar `scripts/run_wf.py` — walk-forward expanding window trimestral sobre 2022Q1–2026Q1, con detección de régimen via dict FOMC hardcodeado, block bootstrap estacionario como contexto, y eva
 
 - **2026-05-25 00:53** — Sprint aceptado · Sesión `088d4bce` · ** Corregir `scripts/run_is.py` para que los campos raíz `sharpe_is`, `max_drawdown` y `calmar_ratio` del JSON sean numéricos, pasando `equity_trimmed` a `compute_performance` en el bloque `__main__`,

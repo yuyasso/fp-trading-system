@@ -766,3 +766,129 @@ TL, micro-diagnóstico de los NaN primero. Luego debatimos qué rediseñar.
 _Sesión de ejecución de Claude Code: `301b0cfc`_
 
 ---
+
+## 2026-05-25 01:56 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Ejecutar TSMOM walk-forward v2 sobre universo ampliado SPY+TLT+GLD+DBC+UUP, actualizando los scripts IS y WF con los nuevos tickers, añadiendo etiquetado de IS truncado para UUP, y el check diagnóstico 2022Q2 en el resumen WF.
+
+---
+
+**Archivos a crear/modificar:**
+
+```
+scripts/run_is.py                          ← modificar: _TICKERS + label UUP truncado
+scripts/run_wf.py                          ← modificar: _TICKERS + diagnóstico 2022Q2
+tests/unit/test_run_is_helpers.py          ← revisar: si algún mock asume exactamente 3 columnas, ajustar a 5
+tests/unit/test_run_wf_helpers.py          ← revisar: igual
+```
+
+Sin tocar: `runner.py`, `equity_metrics.py`, `signal.py`, `sizing.py`, adaptadores.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Leer antes de escribir:**
+```
+scripts/run_is.py          ← leer ENTERO. Localizar _TICKERS, _IS_START, _make_metrics, bloque __main__
+scripts/run_wf.py          ← leer ENTERO. Localizar _TICKERS, generate_wf_windows, bloque __main__
+tests/unit/test_run_is_helpers.py   ← identificar si algún mock construye DataFrame con shape (N, 3)
+tests/unit/test_run_wf_helpers.py   ← igual
+```
+
+**Paso 1 — Precondición: verificar señal UUP en Q1 2022**
+
+Ejecutar este one-liner antes de cualquier modificación:
+```python
+import yfinance as yf
+uup = yf.download("UUP", start="2021-01-04", end="2022-01-03", auto_adjust=True)["Close"]
+ret_12m = float(uup.iloc[-1] / uup.iloc[0] - 1)
+print(f"UUP 12m return entering Jan 2022: {ret_12m:.2%}")
+```
+Reportar el valor. Si es positivo (esperamos ~+6%), continuar. Si es negativo o cero, reportarlo explícitamente — no bloquea la implementación pero debe quedar en el output del script.
+
+**Paso 2 — `scripts/run_is.py`:**
+
+Cambiar la constante de módulo:
+```python
+_TICKERS = ["SPY", "TLT", "GLD", "DBC", "UUP"]
+```
+
+En `_make_metrics` (o donde se construya el JSON de métricas), añadir campo:
+```python
+"universe_note": "Sub-period 2005-08 Sharpe for UUP is partial (~1yr data). DBC available from ~2006."
+```
+El camp
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — TSMOM universo ampliado v2 (SPY+TLT+GLD+DBC+UUP)
+
+**Entregado:**
+- `scripts/run_is.py` — `_TICKERS` actualizado a 5 activos, campo `"universe_note"` en JSON con advertencia IS truncado para UUP/DBC
+- `scripts/run_wf.py` — `_TICKERS` actualizado, bloque diagnóstico `"diagnostic_2022q2"` en JSON summary
+- Tests ajustados donde fixtures asumían 3 columnas
+
+---
+
+**Validaciones**
+
+| Check | Resultado |
+|---|---|
+| Suite completa | ✅ 108 passed (vs 102 línea base — sin regresiones) |
+| `ruff check` | ✅ 0 errores |
+| `git diff runner.py` | ✅ vacío |
+| `python scripts/run_is.py` | ✅ Sharpe IS: 1.647 |
+| `python scripts/run_wf.py` | ✅ 18 ventanas, CSV + JSON + PNG producidos |
+| `paper_trading_authorized` / `stop_triggered` | ✅ `False` / `True` (booleanos, no null) |
+| Precondición UUP señal Q1 2022 | ✅ +5.65% (positivo, confirma tesis) |
+
+---
+
+**Desviaciones del plan**
+
+Ninguna significativa. Los 6 tests adicionales (108 vs 102) se explican por fixtures nuevos para cubrir la lógica del diagnóstico 2022Q2 — coherente con el plan, no scope creep.
+
+---
+
+**Resultado metodológico clave**
+
+`diagnostic_2022q2.tickers_with_positive_signal: ["DBC", "GLD", "SPY", "UUP"]`
+
+El universo ampliado **sí tenía 4 de 5 activos con señal positiva al inicio de 2022Q2**. TLT era el único sin señal (momentum negativo a 12m, correcto). La tesis de A2 se confirma: el v1 era esencialmente mono-activo en SPY en ese trimestre; el v2 distribuye sobre DBC+UUP+GLD+SPY. Lo que el walk-forward diga sobre el Sharpe OOS de 2022Q2 es ahora la pregunta real.
+
+**`stop_triggered: True` en el WF v2.** El PO necesita revisar en qué trimestre y con qué Sharpe OOS para determinar si el universo ampliado desplaza el stop o simplemente lo suaviza.
+
+---
+
+**Deuda técnica**
+
+La dependencia de `compute_asset_attribution` sobre helpers `_`-prefixed de `runner.py` sigue activa. Preexistente, no empeora.
+
+---
+
+**Próximo paso recomendado**
+
+Antes de que el PO emita veredicto, necesitamos leer la tabla completa del WF v2 por ventana — especialmente 2022Q1–Q4 — para ver si el stop se dispara en el mismo trimestre (2022Q2) o el universo ampliado lo desplaza a otro punto. Eso determina si v2 es un fix real o un parche cosmético del problema.
+
+**PO: los 10 criterios de aceptación están en verde. La decisión es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 10 criterios que definí están cumplidos sin excepción. Validación rápida:
+
+- Criterios 1–4 (precondición UUP, constantes, universe_note, diagnostic_2022q2): ✅ todos presentes y con valores válidos.
+- Criterios 5–7 (108 tests, ruff, runner intacto): ✅ sin regresiones, sin errores, sin tocar el runner.
+- Criterios 8–10 (ejecuciones IS y WF, booleanos): ✅ ambos scripts ejecutan limpio, paper_trading_authorized: False / stop_triggered: True.
+
+**Resultado metodológico que registro:** el diagnóstico 2022Q2 confirma la tesis — v2 tenía 4/5 activos con señal positiva en el trimestre crítico (v1 era esencialmente mono-SPY). El universo ampliado resuelve la concentración. Pero `stop_triggered: True` sigue activo, lo que significa que **paper trading sigue bloqueado hasta entender en qué trimestre dispara el stop en v2 y con qué Sharpe OOS**.
+
+**Siguiente paso inmediato:** necesito la tabla completa del WF v2 por ventana — especialmente 2022Q1–Q4 — antes de abrir debate de siguiente iteración. A1, A2: en cuanto tengamos esa lectura, analicen si el stop de v2 se dispara antes, después o en el mismo punto que v1, y qué implica eso. Si v2 desplaza el stop hacia adelante con un Sharpe menos extremo, es un fix real. Si el stop sigue en 2022Q2 con Sharpe OOS similar, el universo no resolvió el problema de fondo.
+
+_Sesión de ejecución de Claude Code: `c73bf0b5`_
+
+---

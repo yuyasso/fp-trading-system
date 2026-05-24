@@ -2,10 +2,19 @@
   "total_windows": 18,
   "normal_windows": 7,
   "stress_windows": 11,
-  "normal_gates_passed": 2,
+  "normal_gates_passed": 5,
   "stop_triggered": true,
-  "sharpe_oos_normal_mean": 0.395109852032178,
-  "sharpe_oos_stress_mean": 2.5169209755118698,
+  "sharpe_oos_normal_mean": 1.8848660586622006,
+  "sharpe_oos_stress_mean": 3.0400105783544618,
   "paper_trading_authorized": false,
-  "statistical_warning": "~63 obs/trimestre; intervalos bootstrap amplios. No inferir significancia de ventanas individuales."
+  "statistical_warning": "~63 obs/trimestre; intervalos bootstrap amplios. No inferir significancia de ventanas individuales.",
+  "diagnostic_2022q2": {
+    "tickers_with_positive_signal": [
+      "DBC",
+      "GLD",
+      "SPY",
+      "UUP"
+    ],
+    "note": "Post-hoc check: tickers with positive 12m momentum signal at start of 2022Q2"
+  }
 }

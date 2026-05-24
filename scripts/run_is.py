@@ -34,12 +34,17 @@ _LOOKBACK_MONTHS = 12
 _TARGET_VOL = 0.10
 _IS_START = date(2005, 1, 1)
 _IS_END = date(2021, 12, 31)
-_TICKERS = ["SPY", "TLT", "GLD"]
+_TICKERS = ["SPY", "TLT", "GLD", "DBC", "UUP"]
 
 _STATISTICAL_WARNING = (
     "IS Sharpe has insufficient statistical power for strategy adoption decisions. "
-    "~17 years IS, monthly rebalancing on 3 assets = O(200) rebalances. "
+    "~17 years IS, monthly rebalancing on 5 assets = O(200) rebalances. "
     "Not a decision criterion."
+)
+
+_UNIVERSE_NOTE = (
+    "Sub-period 2005-08 Sharpe for UUP is partial (~1yr data). "
+    "DBC available from ~2006."
 )
 
 _SUB_PERIODS = [
@@ -161,6 +166,7 @@ def _make_metrics(
         "n_rebalances_is": n_rebalances,
         "warmup_days_excluded": warmup_days,
         "statistical_warning": _STATISTICAL_WARNING,
+        "universe_note": _UNIVERSE_NOTE,
         "subperiod_sharpes": {
             k: (_fmt(v) if isinstance(v, float) else v)
             for k, v in subperiod_sharpes.items()

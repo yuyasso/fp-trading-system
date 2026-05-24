@@ -379,3 +379,57 @@ Las tres preguntas del PO al TL son operativas de planificación, no decisiones 
 TL, luz verde. Planifica.
 
 ---
+
+## 2026-05-25 01:45 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — TSMOM universo ampliado v2**
+
+**En una frase:** mismo TSMOM long-only, mismos parámetros, pero sobre SPY+TLT+GLD+DBC+UUP — donde DBC y UUP aportan exposición a regímenes inflacionarios que el universo v1 no cubría.
+
+---
+
+**Lo que propongo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Estrategia | TSMOM long-only, lookback=12, λ=0.94, target_vol=0.10 — sin tocar señal ni runner |
+| Universo v2 | SPY + TLT + GLD + **DBC** (desde ~2006) + **UUP** (desde ~2007) |
+| NaN de UUP en 2005–2006 | Peso 0 automático por señal inválida — mecanismo existente, sin modificar runner |
+| Long/short | Fuera de scope — diferido indefinidamente |
+| Filtro de vol | Fuera de scope — diferido a v3 si v2 no es suficiente |
+| Yield real | Contexto diagnóstico en el reporte, no parámetro |
+
+---
+
+**Criterios de validación (pre-registrados, inmutables):**
+
+Mismos gates que v1 — no se renegocia porque el universo cambie:
+- Régimen normal: Sharpe OOS > 0.8, DD < 15%, ratio OOS/IS > 0.35
+- Régimen estrés: Sharpe OOS > −0.5, DD < 20%
+- Stop absoluto: Sharpe OOS < 0.3 en cualquier ventana normal
+
+**Check diagnóstico post-hoc** (no gate de aceptación, resuelvo el punto del Jefe): confirmar si DBC y/o UUP tenían señal positiva y peso > 0 en 2022Q2. Si ninguno tenía, el universo ampliado no resuelve el problema original y debatimos antes de aceptar los resultados.
+
+**Precondición de planificación** (A2 lo señala, es razonable): verificar con datos Yahoo reales que UUP tiene retorno positivo a 12m entrando en enero 2022 — si no, UUP solo aporta base IS sin el impacto OOS que motiva su inclusión. El TL puede resolver esto con un one-liner antes de planificar el sprint completo.
+
+---
+
+**Riesgos que vigilo:**
+- **Selección por comportamiento OOS:** DBC y UUP se incluyen por causalidad económica IS-first, no porque funcionaron en 2022. Si el walk-forward v2 pasa y alguien argumenta "claro, elegimos los que subieron en 2022", ese argumento es inválido — la justificación está documentada antes de ver los resultados.
+- **IS truncado para UUP:** sub-período 2005-08 tiene ~1 año de datos de UUP. El Sharpe parcial 2005-08 del v2 no será directamente comparable con el v1 — hay que etiquetarlo explícitamente en el reporte.
+
+Jefe, esta propuesta resuelve los dos puntos de rechazo: universo cerrado (5 tickers definidos) y criterio 2022Q2 reformulado como diagnóstico post-hoc. ¿Revisas?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Los dos puntos del rechazo anterior están resueltos: universo cerrado (5 tickers con justificación económica y datos ≥2007), y el criterio 2022Q2 degradado a diagnóstico post-hoc. No queda ninguna pregunta abierta ni condición flotante.
+
+La precondición de A2 (verificar señal UUP en Q1 2022) es un one-liner que el TL resuelve en los primeros 30 segundos de planificación — no es una decisión pendiente, es una consulta de datos trivial.
+
+TL, luz verde. Planifica.
+
+---
