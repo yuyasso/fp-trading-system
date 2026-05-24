@@ -4,6 +4,18 @@ Cada entrada: fecha, decisión, contexto, alternativas consideradas, consecuenci
 
 ---
 
+## 2026-05-24 — Sprint 4: IS runner script + atribución
+
+### Decisiones de diseño
+- `compute_asset_attribution` importa helpers privados de runner (`_compute_monthly_signal`, `_compute_ewma_vol_weight`, `_pivot_ohlcv`) en lugar de duplicar lógica. Duplicación < 20 líneas → no se extrajo a `src/trading/analysis/`.
+- `compute_subperiod_sharpes` delega en `compute_performance` para Sharpe sub-período (mismo ddof=1, mismo factor 252).
+- Columnas del DataFrame de atribución ordenadas alfabéticamente por pandas `unstack` (no por orden del parámetro `tickers`). Test ajustado a `set` comparison.
+- `_make_metrics` convierte NaN a `None` (JSON `null`) vía `_fmt()` helper.
+- Root `conftest.py` añade `scripts/` a sys.path para que tests importen `run_is`.
+- Warmup: `equity_curve.iloc[lookback_months * 21:]` — structural, no fecha fija.
+
+---
+
 ## 2026-05-24 00:40 — Decisión validada por el Jefe
 
 ### Síntesis del Product Owner
@@ -75,5 +87,102 @@ Entregado. Sprint 3 completo.
 - NaN propagado: open[300]=NaN → daily_asset_returns[298,299]=NaN → equity con NaN
 - Métricas delegadas: patch de `compute_performance` devuelve sentinel y se verifica
 - Diagnóstico de correlación y rebalanceos logueado via logger.info
+
+---
+
+## 2026-05-24 01:34 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Ejecución IS y análisis de output**
+
+**En una frase:** ejecutamos el runner contra datos reales IS (2005–2021) con un script de análisis que produce equity curve, drawdown, desglose por sub-período y atribución por activo — todo sin tocar el contrato del runner ya validado.
+
+---
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Script de entrada | `scripts/run_is.py` |
+| Rango IS | `start = 2005-01-01`, `end = 2021-12-31` |
+| Calentamiento | Excluir los primeros `lookback_months` del cálculo de métricas — estructural en el script, no fecha fija |
+| Capital base | `1.0` — equity curve como factores de crecimiento |
+| Persistencia | `results/backtest/tsmom_is_YYYYMMDD.csv` + `tsmom_is_YYYYMMDD_metrics.json` |
+| Gráfico | Equity + drawdown apilados, matplotlib estático guardado en `results/backtest/` |
+| Desglose sub-período | Sharpe parcial para 2005–08, 2009–13, 2014–18, 2019–21 — en el JSON de métricas |
+| Atribución por activo | Retornos individuales extraídos en el script antes de la agregación — sin modificar `runner.py` |
+| Runner | Sin cambios. Contrato validado en el sprint anterior, intocable |
+
+---
+
+**Criterios de aceptación — no acepto sin:**
+1. Calentamiento excluido de forma estructural (`equity_curve = equity_curve.iloc[lookback_months:]`) con comentario explícito — no fecha hardcodeada.
+2. JSON de métricas incluye los cuatro Sharpes parciales por sub-período, explícitamente etiquetados. Si solo hay Sharpe agregado, la entrega se rechaza.
+3. Gráfico muestra drawdown con escala temporal visible (eje X = fechas, no solo profundidad). Un drawdown largo debe ser visualmente distinguible de uno profundo pero breve.
+4. Atribución por activo calculada en el script a partir de los datos OHLCV, no interpolada ni inventada a partir del agregado.
+5. El script es ejecutable con `python scripts/run_is.py` sin argumentos y produce todos los outputs en `results/backtest/`.
+
+---
+
+**Riesgos que vigilo:**
+- **Sesgo de interpretación del IS:** el Sharpe 2005–2021 incluye el ciclo de renta fija más favorable de la historia. Si A2 tiene razón y el 80% del alpha viene de TLT en QE, el walk-forward sobre datos post-2022 será un desastre predecible. Los cuatro sub-períodos son el antídoto a este sesgo.
+- **Scope creep sobre el runner:** si el TL siente la tentación de "mejorar" el runner para facilitar la atribución, la respuesta es no. El script resuelve esto sin tocar lo validado.
+
+TL, queda en tu tejado. Sin bloqueantes técnicos que anticipe.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta limpia. Los analistas cerraron el debate importante — desglose por sub-período como antídoto al sesgo de régimen — y el PO sintetizó sin dejar preguntas abiertas. El runner no se toca, la atribución se resuelve en el script, y los criterios son verificables.
+
+Una precisión para el TL: el criterio #1 del PO usa `equity_curve.iloc[lookback_months:]` como pseudo-código ilustrativo, pero `lookback_months=12` saltaría 12 filas (días), no 12 meses. Implementa el warmup como `lookback_months * 21` días de trading o filtra por fecha. La intención es clara; la aritmética la ajustas tú.
+
+TL, luz verde.
+
+---
+
+## 2026-05-24 02:22 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Ejecución real del IS runner**
+
+**En una frase:** ejecutamos `scripts/run_is.py` sin cambios contra datos reales y traemos los 6 números clave al equipo para decidir si TSMOM sobre SPY+TLT+GLD merece walk-forward.
+
+---
+
+**Lo que autorizo:**
+
+| Elemento | Decisión |
+|---|---|
+| Acción | Ejecutar `python scripts/run_is.py` desde `cwd=~/development/fp-trading-system` |
+| Modificaciones al código | Ninguna — el script ya está validado y aceptado |
+| Output requerido | JSON generado + stdout capturado |
+
+---
+
+**Criterio de aceptación único:**
+JSON con las cuatro claves `"2005-08"`, `"2009-13"`, `"2014-18"`, `"2019-21"` presentes con valores numéricos (no `null`), y los 6 números reportados aquí: Sharpe IS total, max drawdown, Calmar, y los 4 Sharpes parciales.
+
+---
+
+**Marco de interpretación que aplicaré** (registrado antes de ver los números, para no ajustarlo post-hoc):
+- Si los sub-períodos "difíciles" 2005–2008 y 2014–2018 muestran ambos Sharpe < 0.3 → walk-forward descartado, el equipo debate rediseño.
+- Si TLT domina >60% del retorno en el ciclo QE → alpha es régimen-dependiente, no transferible a 2022+.
+- Si los números pasan ambos filtros → autorizamos walk-forward en el siguiente sprint.
+
+TL, un solo paso de ejecución. Sin bloqueantes.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta trivial, bien acotada. No hay código nuevo, no hay decisiones de diseño, no hay ambigüedad. El script ya pasó 80/80 tests y está aceptado — esto es darle al play.
+
+El marco de interpretación pre-registrado del PO es exactamente lo que exijo: umbrales definidos antes de ver los números, no después. Sharpe < 0.3 en sub-períodos difíciles = no walk-forward. TLT > 60% del retorno en QE = alpha no transferible. Eso blinda contra el sesgo de confirmación.
+
+TL, ejecuta. Un paso, cero modificaciones.
 
 ---
