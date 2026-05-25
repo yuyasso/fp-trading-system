@@ -470,3 +470,61 @@ Sprint de lectura pura, cero riesgo, cero ambigüedad. El comando ya está escri
 TL, ejecuta.
 
 ---
+
+## 2026-05-25 23:03 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — TSMOM v3a: filtro de correlación SPY/TLT (primera iteración secuencial)**
+
+**En una frase:** validamos un único overlay — filtro de correlación rolling SPY/TLT 60d con umbral P90 IS fijo — antes de introducir cualquier segunda capa.
+
+---
+
+**Lo que propongo implementar (v3a únicamente):**
+
+| Elemento | Decisión |
+|---|---|
+| Señal base | TSMOM 12m, λ=0.94 — intocable |
+| Overlay | Correlación rolling SPY/TLT 60d: si supera P90 IS 2005–2021 → target_vol al 50% (5%) |
+| Calibración | Un único valor numérico fijo, calculado sobre IS completo 2005–2021, persistido como `"correlation_p90_threshold"` en el JSON — no rolling, no recalculado por ventana |
+| Scope | v3b (dual-momentum) se diseña solo si v3a pasa gates. v3c (combinado) solo si ambos pasan por separado |
+| Runner | Intocable. El overlay vive en el script de WF v3a — capa externa |
+
+---
+
+**Criterios de validación (pre-registrados, inmutables):**
+
+| Gate | Condición | Resultado si falla |
+|---|---|---|
+| Anti-overfitting IS | Filtro dispara en ≥2 eventos IS distintos de 2022 (verificar Taper Tantrum 2013 y COVID 2020 explícitamente) | Umbral descartado — debate de nuevo umbral antes de WF |
+| No daño COVID 2020 | Si filtro disparó en marzo 2020: cuantificar retorno perdido vs. drawdown evitado | Si retorno perdido > drawdown evitado, overlay rechazado |
+| Exposición Q2+Q4 2022 | Exposición media ≥ 50% en los días hábiles de 2022Q2 y 2022Q4 con overlay activo | Si < 50%, la estrategia es timing de mercado, no TSMOM — rechazo directo |
+| WF v3a 2022Q2 y Q4 | Sharpe OOS ≥ −0.5 en ambas ventanas | No pasa a v3b — debate de rediseño |
+| Gates originales intactos | Régimen normal: Sharpe OOS > 0.8, DD < 15%; stop absoluto < 0.3 | Sin autorización de paper trading |
+
+---
+
+**Riesgos que vigilo:**
+- **P90 cosmético:** si el valor calculado coincide numéricamente con el pico de 2022, el percentil no aporta nada sobre el valor absoluto. El count de disparos IS es la verificación que lo desmiente o confirma.
+- **Scope creep hacia v3b antes de tiempo:** si v3a no resuelve 2022Q2/Q4, no arrancamos v3b hasta debatir si el problema es el overlay o la señal base.
+
+Jefe, los tres puntos de rechazo anterior quedan cubiertos: gate de exposición formalizado (Q2+Q4, no año completo), testeo secuencial explícito, y percentil fijo con valor auditado. ¿Revisas?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Los tres puntos del rechazo anterior están resueltos con precisión:
+
+1. **Gate de exposición formalizado:** ≥50% en Q2+Q4 2022 específicamente, no año completo. Criterio binario, medible, con consecuencia clara (rechazo si < 50%). La matización de A2 es correcta — medir el año completo penalizaría comportamiento deseable.
+
+2. **Testeo secuencial:** v3a solo → v3b solo si v3a pasa → v3c solo si ambos pasan. Elimina la ambigüedad de atribución. Si v3a resuelve 2022Q2/Q4, v3b ni se toca.
+
+3. **Percentil fijo:** un número, calculado sobre IS 2005–2021, persistido como campo auditable en el JSON. Sin rolling, sin recalculación por ventana. Limpio.
+
+El gate anti-overfitting (≥2 disparos IS fuera de 2022) es la salvaguarda correcta contra el riesgo de calibrar sobre un evento único. Si solo dispara en 2022, el umbral muere antes de llegar al WF.
+
+TL, luz verde. Planifica v3a.
+
+---

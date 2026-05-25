@@ -1054,3 +1054,122 @@ El criterio único que definí se cumple con la condición de diagnóstico activ
 _Sesión de ejecución de Claude Code: `8ab49e33`_
 
 ---
+
+## 2026-05-25 23:20 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Implementar `scripts/run_wf_v3a.py` — walk-forward TSMOM con overlay de correlación rolling SPY/TLT 60d (target_vol × 0.5 cuando correlación supera P90 IS fijo), sin modificar runner.py, con gates de anti-overfitting, exposición Q2+Q4 2022 y WF pre-registrados.
+
+---
+
+**Archivos a crear/modificar:**
+
+```
+scripts/run_wf_v3a.py                      ← nuevo (script ejecutable + helpers testeables)
+tests/unit/test_run_wf_v3a_helpers.py      ← nuevo (TDD de helpers)
+```
+
+Sin tocar: `runner.py`, `run_wf.py`, `run_is.py`, `equity_metrics.py`, adaptadores.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Leer antes de escribir:**
+```
+scripts/run_wf.py                              ← arquitectura de referencia (patrón WF)
+src/trading/backtest/runner.py                 ← helpers privados: _pivot_ohlcv,
+                                                 _compute_monthly_signal, _compute_ewma_vol_weight
+src/trading/domain/metrics/equity_metrics.py   ← firma de compute_performance
+tests/unit/test_run_wf_helpers.py              ← patrón de tests existente
+```
+
+---
+
+**Constantes de módulo:**
+
+```python
+_TICKERS          = ["SPY", "TLT", "GLD", "DBC", "UUP"]
+_LOOKBACK_MONTHS  = 12
+_TARGET_VOL       = 0.10
+_EWMA_LAMBDA      = 0.94
+_CORR_WINDOW      = 60        # días hábiles, correlación rolling SPY/TLT
+_CORR_REDUCTION   = 0.5       # factor multiplicador de target_vol cuando overlay activo
+_CORR_PERCENTILE  = 90.0      # percentil IS para threshold fijo
+_IS_START         = date(2005, 1, 1)
+_IS_END           = date(2021, 12, 31)
+_OOS_END          = date(2026, 4, 30)
+```
+
+---
+
+**Helpers testeables (funciones públicas del módulo):**
+
+**`compute_rolling_correlation(series_a: pd.Series, series_b: pd.Series, window: int) -> pd.Series`**
+Correlación rolling Pearson entre dos series de retornos diarios (`pct_change()` aplicado internamente si se reciben precios — dejar que el test dicte). Devuelve serie de misma longitud, NaN en las primeras `window-1` posiciones.
+
+**`compute_correlation_th
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — TSMOM v3a: overlay correlación SPY/TLT
+
+**Entregado:**
+- `scripts/run_wf_v3a.py` — 5 helpers públicos testeables + flujo `__main__` completo con gate anti-overfitting, 18 ventanas WF, CSV con columna `quarter` etiquetada, JSON con los 10 campos requeridos, PNG 3 subplots
+- `tests/unit/test_run_wf_v3a_helpers.py` — 16 tests, cero llamadas de red
+
+**Validaciones**
+
+| Check | Resultado |
+|---|---|
+| Tests nuevos (`test_run_wf_v3a_helpers.py`) | ✅ 16/16 |
+| Suite completa | ✅ 124 passed (sin regresiones sobre los 108 base) |
+| `ruff check` | ✅ 0 errores |
+| `git diff runner.py` | ✅ vacío — runner intocable |
+| Criterios 5–9 (ejecución con red) | ⚠️ **PENDIENTE** — no verificados en esta sesión |
+
+**Desviaciones del plan**
+
+Ninguna reportada por Claude Code en los criterios verificables sin red. La arquitectura implementada sigue exactamente el plan: helpers aislados, overlay como capa externa, flujo `__main__` con gate anti-overfitting con `sys.exit(1)` si < 2 eventos IS.
+
+**Deuda técnica**
+
+- Los criterios 5–9 (ejecución real, JSON con campos auditables, CSV con columna `quarter`, stdout con reporte Taper Tantrum/COVID, gate anti-overfitting live) **solo son verificables con conexión a Yahoo Finance**. No están cubiertos por unitarios, como estaba previsto.
+- `run_tsmom_v3a_window` carga sus propios datos OHLCV independientemente por ventana — potencialmente 18 llamadas a Yahoo en lugar de una carga unificada. Si hay rate-limiting, puede fallar silenciosamente en ventanas intermedias. Merece verificación en la ejecución con red.
+
+**Riesgos descubiertos**
+
+Ninguno nuevo en la fase de tests unitarios. El riesgo principal sigue siendo el que el Jefe ya tenía en el radar: si el P90 IS devuelve un valor que coincide con el pico de 2022 y el gate anti-overfitting pasa por los pelos (exactamente 2 eventos), el umbral sería metodológicamente débil aunque formalmente válido. El stdout con `taper_tantrum_2013_fired` y `covid_2020_fired` es la verificación que lo resuelve — o no.
+
+**Próximo paso recomendado**
+
+Ejecutar `python scripts/run_wf_v3a.py` con red y traer al canal:
+1. El valor de `correlation_p90_threshold`
+2. La lista `corr_is_events` con fechas (¿dispara en 2013 y 2020?)
+3. `exposure_2022q2` y `exposure_2022q4`
+4. Sharpe OOS de 2022Q2 y Q4 con overlay activo
+
+**PO: los criterios 1–4 están en verde. Los criterios 5–9 requieren tu verificación con red. La información que necesitas para decidir si v3a pasa los gates pre-registrados solo aparece en esa ejecución.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los criterios verificables sin red están todos en verde:
+
+1. ✅ 16/16 tests `test_run_wf_v3a_helpers.py` — cero llamadas de red.
+2. ✅ 124 passed — sin regresiones sobre la base de 108.
+3. ✅ `ruff check` 0 errores.
+4. ✅ `git diff runner.py` vacío — runner intocable.
+9. ✅ Gate anti-overfitting con `sys.exit(1)` implementado y verificable en código.
+
+Los criterios 5–8 (ejecución real, JSON con campos, CSV con `quarter`, stdout con Taper/COVID) son dependientes de red y siguen el mismo patrón que sprints anteriores — anticipados en el plan como tal. La arquitectura ya está entregada y testeada.
+
+**Deuda registrada:** `run_tsmom_v3a_window` realiza 18 llamadas separadas a Yahoo en lugar de una carga unificada — riesgo de rate-limiting que el TL señala. No bloquea la aceptación pero debe verificarse en la ejecución con red.
+
+**Siguiente paso inmediato:** sprint de ejecución pura — `python scripts/run_wf_v3a.py` — y traer al canal los 4 números que deciden si v3a pasa los gates pre-registrados: `correlation_p90_threshold`, lista de eventos IS (¿2013 y 2020?), `exposure_2022q2`/`exposure_2022q4`, y Sharpe OOS de 2022Q2 y Q4. TL, mismo patrón que el sprint de lectura del WF v2 — sin código nuevo.
+
+_Sesión de ejecución de Claude Code: `16aa6245`_
+
+---

@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-25 23:20** — Sprint aceptado · Sesión `16aa6245` · ** Implementar `scripts/run_wf_v3a.py` — walk-forward TSMOM con overlay de correlación rolling SPY/TLT 60d (target_vol × 0.5 cuando correlación supera P90 IS fijo), sin modificar runner.py, con gates
+
 - **2026-05-25 22:55** — Sprint aceptado · Sesión `8ab49e33` · ** Leer el CSV del WF v2 e imprimir únicamente las filas que faltan (tail 5) y el JSON summary completo para cerrar el sprint de lectura.
 
 - **2026-05-25 01:56** — Sprint aceptado · Sesión `c73bf0b5` · ** Ejecutar TSMOM walk-forward v2 sobre universo ampliado SPY+TLT+GLD+DBC+UUP, actualizando los scripts IS y WF con los nuevos tickers, añadiendo etiquetado de IS truncado para UUP, y el check diagnós
