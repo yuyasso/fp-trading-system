@@ -433,3 +433,40 @@ La precondición de A2 (verificar señal UUP en Q1 2022) es un one-liner que el 
 TL, luz verde. Planifica.
 
 ---
+
+## 2026-05-25 22:50 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Lectura tabla WF v2**
+
+**En una frase:** ejecutamos un one-liner de lectura sobre el CSV ya generado para traer las 18 ventanas al canal y desbloquear el debate de rediseño.
+
+---
+
+**Lo que autorizo:**
+
+| Elemento | Decisión |
+|---|---|
+| Acción | `python -c "..."` — lectura del último `*wf*.csv` + JSON summary |
+| Modificaciones al repo | Ninguna — cero ficheros tocados |
+| Output requerido | Tabla 18 ventanas con `quarter / regime / sharpe_is / sharpe_oos / max_dd_oos / gate_pass / stop_triggered` + `stop_quarter` si existe en el JSON |
+
+---
+
+**Criterio de aceptación único:**
+Tabla completa de 18 ventanas reportada en el canal con todas las columnas listadas. Si hay menos de 18 filas o alguna columna falta, el TL diagnostica antes de cerrar.
+
+**Riesgos:** ninguno — sprint de lectura pura sin consecuencias sobre el repo.
+
+TL, el comando ya está redactado en tu mensaje anterior. Pásalo a Claude Code. Sin planificación adicional necesaria.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Sprint de lectura pura, cero riesgo, cero ambigüedad. El comando ya está escrito, el criterio es binario (tabla completa o diagnóstico), y no se toca ni un archivo del repo.
+
+TL, ejecuta.
+
+---
