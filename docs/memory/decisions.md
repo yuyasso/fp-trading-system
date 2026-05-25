@@ -528,3 +528,28 @@ El gate anti-overfitting (≥2 disparos IS fuera de 2022) es la salvaguarda corr
 TL, luz verde. Planifica v3a.
 
 ---
+
+## 2026-05-25 23:22 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+Sprint de ejecución trivial — no hay debate que sintetizar. El script está aceptado, los gates pre-registrados son inmutables, y los 4 números que necesitamos son el output directo del script.
+
+**Autorizo el sprint de ejecución.** Un solo paso, cero modificaciones al repo. El TL ejecuta `python scripts/run_wf_v3a.py` y trae al canal:
+
+1. `correlation_p90_threshold` — si el valor es muy próximo al pico de 2022, el gate anti-overfitting se vuelve la verificación crítica.
+2. `taper_tantrum_2013_fired` y `covid_2020_fired` — esto decide si el umbral es robusto o cosmético.
+3. `exposure_2022q2` y `exposure_2022q4` — gate de exposición ≥50%.
+4. Sharpe OOS de 2022Q2 y Q4 — gate WF ≥ −0.5.
+
+**El veredicto lo emito yo cuando tenga los 4 números**, aplicando los criterios pre-registrados sin negociación. TL, adelante.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Sprint de ejecución pura, cero ambigüedad. El script está implementado, testeado (124 passed), y aceptado. Los gates son inmutables y pre-registrados. No hay decisión de diseño pendiente ni condición flotante.
+
+TL, ejecuta y trae los números. El PO aplica los gates cuando los tenga.
+
+---

@@ -1,0 +1,63 @@
+{
+  "correlation_p90_threshold": 0.02964185842619209,
+  "corr_is_events": [
+    {
+      "start": "2005-03-31",
+      "end": "2005-06-01"
+    },
+    {
+      "start": "2005-07-29",
+      "end": "2005-08-24"
+    },
+    {
+      "start": "2005-10-03",
+      "end": "2005-10-03"
+    },
+    {
+      "start": "2006-04-18",
+      "end": "2006-11-24"
+    },
+    {
+      "start": "2007-01-31",
+      "end": "2007-02-26"
+    },
+    {
+      "start": "2007-06-07",
+      "end": "2007-07-25"
+    },
+    {
+      "start": "2013-08-21",
+      "end": "2013-11-07"
+    },
+    {
+      "start": "2013-12-06",
+      "end": "2014-01-10"
+    },
+    {
+      "start": "2015-05-11",
+      "end": "2015-05-27"
+    },
+    {
+      "start": "2016-09-21",
+      "end": "2016-11-08"
+    },
+    {
+      "start": "2021-03-09",
+      "end": "2021-07-09"
+    }
+  ],
+  "taper_tantrum_2013_fired": false,
+  "covid_2020_fired": false,
+  "exposure_2022q2": 1.0,
+  "exposure_2022q4": 1.0,
+  "paper_trading_authorized": false,
+  "stop_triggered": true,
+  "stop_quarter": "2022Q2",
+  "statistical_warning": "~63 obs/trimestre; intervalos bootstrap amplios. No inferir significancia de ventanas individuales. Overlay correlacion SPY/TLT experimental \u2014 no inferir causalidad.",
+  "total_windows": 18,
+  "normal_windows": 7,
+  "stress_windows": 11,
+  "normal_gates_passed": 4,
+  "sharpe_oos_normal_mean": 1.876020780972042,
+  "sharpe_oos_stress_mean": 3.0595851346984175
+}

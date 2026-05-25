@@ -1173,3 +1173,152 @@ Los criterios 5–8 (ejecución real, JSON con campos, CSV con `quarter`, stdout
 _Sesión de ejecución de Claude Code: `16aa6245`_
 
 ---
+
+## 2026-05-25 23:32 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Obtener los 4 números que deciden si v3a pasa los gates pre-registrados — ejecutando `python scripts/run_wf_v3a.py` si no hay output previo, o leyendo los ficheros ya generados si el script ejecutó en una sesión anterior.
+
+---
+
+**Archivos a crear/modificar:** Ninguno. Sprint de ejecución/lectura pura — cero modificaciones al repo.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Comprobar si ya existen outputs de v3a:**
+```bash
+ls -la ~/development/fp-trading-system/results/backtest/tsmom_wf_v3a* 2>/dev/null || echo "NO_OUTPUT_EXISTS"
+```
+
+**Rama A — Si existen ficheros `tsmom_wf_v3a_*`:** ir directamente al Paso 2 (lectura). No ejecutar el script de nuevo.
+
+**Rama B — Si NO existen ficheros v3a:** ejecutar el script:
+```bash
+cd ~/development/fp-trading-system
+python scripts/run_wf_v3a.py
+```
+
+**Paso 2 — Leer y reportar los valores requeridos:**
+```bash
+cd ~/development/fp-trading-system
+python -c "
+import json, glob, pandas as pd
+
+# JSON summary
+jsons = sorted(glob.glob('results/backtest/tsmom_wf_v3a*summary*.json'))
+if not jsons:
+    print('ERROR: no JSON summary encontrado')
+    exit(1)
+
+d = json.load(open(jsons[-1]))
+print('=== GATES v3a ===')
+for k in ['correlation_p90_threshold','taper_tantrum_2013_fired','covid_2020_fired',
+          'exposure_2022q2','exposure_2022q4','paper_trading_authorized',
+          'stop_triggered','stop_quarter']:
+    print(f'{k}: {d.get(k, \"CAMPO AUSENTE\")}')
+
+# Sharpe OOS Q2 y Q4 2022 desde CSV
+csvs = sorted(glob.glob('results/backtest/tsmom_wf_v3a*.csv'))
+if csvs:
+    df = pd.read_csv(csvs[-1])
+    print()
+    print('=== SHARPE OOS 2022 ===')
+    if 'quarter' in df.columns:
+        for q in ['2022Q2', '2022Q4']:
+            row = df[df['quarter'] == q]
+            if not row.empty:
+                print(f'{q}: sharpe_oos={row[\"sharpe_oos\"].values[0]}, gate_pass={row[\"gate_pass\"].values[0]}')
+            else:
+                print(f'{q}: NO ENCONTRADO en CSV')
+    else:
+        print('Columna quarter ausente — mostrando f
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Ejecución `run_wf_v3a.py` (sesión `213bed98`)
+
+**Entregado:** Ejecución pura de `scripts/run_wf_v3a.py`. Cero ficheros modificados. Los 4 números solicitados por el PO están disponibles.
+
+---
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| `correlation_p90_threshold` como float | ✅ 0.0296 |
+| `taper_tantrum_2013_fired` / `covid_2020_fired` | ✅ False / False (booleanos) |
+| `exposure_2022q2` / `exposure_2022q4` | ✅ 1.0 / 1.0 |
+| Sharpe OOS 2022Q2 y Q4 reportados | ✅ −0.422 / −2.119 |
+| Cero ficheros modificados | ✅ |
+
+---
+
+**Aplicación de gates pre-registrados**
+
+| Gate | Condición | Resultado |
+|---|---|---|
+| Anti-overfitting IS (≥2 eventos fuera de 2022) | 11 eventos detectados | ✅ Pasa la cuenta |
+| Verificación Taper 2013 / COVID 2020 | Ninguno disparó | ❌ Falla la verificación específica |
+| Exposición Q2+Q4 2022 ≥ 50% | 1.0 / 1.0 | ✅ |
+| Sharpe OOS 2022Q2 ≥ −0.5 | −0.422 | ✅ (por los pelos) |
+| Sharpe OOS 2022Q4 ≥ −0.5 | −2.119 | ❌ Falla |
+
+**`paper_trading_authorized: False` · `stop_triggered: True`**
+
+---
+
+**Hallazgo metodológico crítico — no era visible en la fase de diseño**
+
+El threshold P90 = 0.0296 es casi cero. Esto implica que el overlay está activo ~90% del tiempo en IS (siempre que la correlación SPY/TLT > 0.03). No es un filtro de régimen — es `target_vol = 5%` permanente con excepción de períodos de correlación muy negativa. Eso explica por qué Taper 2013 y COVID 2020 no "dispararon" como eventos discretos: el overlay estaba ya activo antes y después.
+
+Consecuencia directa: **una reducción de vol no puede mejorar el Sharpe OOS**. Si retornos y volatilidad escalan por el mismo factor (0.5), el Sharpe es invariante a escala. El Sharpe OOS de 2022Q4 con overlay (−2.119) es prácticamente idéntico al de v2 sin overlay (−2.12). El overlay reduce drawdown en términos absolutos, no el ratio de información. El diseño del gate v3a sobre Sharpe OOS era estructuralmente incompatible con un overlay de vol-scaling.
+
+---
+
+**Deuda técnica**
+
+Ninguna nueva. La deuda preexistente de `run_tsmom_v3a_window` con 18 llamadas separadas a Yahoo no causó rate-limiting en esta sesión, pero sigue siendo un riesgo latente.
+
+---
+
+**Próximo paso recomendado**
+
+v3a no pasa: falla el gate de 2022Q4 y la verificación explícita de Taper/COVID. Según los criterios pre-registrados, no arrancamos v3b hasta debatir si el problema es el overlay o la señal base. Mi lectura técnica: el problema es la **señal base** en régimen de tipos al alza con SPY y TLT correlacionados positivamente — ambos tienen señal TSMOM negativa simultáneamente, y ningún overlay de vol-scaling resuelve eso. Un overlay de *exclusión condicional* (peso cero a TLT cuando correlación SPY/TLT > umbral durante N días) sería distinto, pero es un diseño nuevo que el equipo debe debatir antes de autorizar.
+
+**PO: los 5 criterios de este sprint están cumplidos. El veredicto sobre v3a y el camino a seguir está en tu tejado.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 5 criterios del sprint están cumplidos sin excepción:
+
+1. ✅ `correlation_p90_threshold`: 0.0296 — float.
+2. ✅ `taper_tantrum_2013_fired`: False / `covid_2020_fired`: False — booleanos.
+3. ✅ `exposure_2022q2`: 1.0 / `exposure_2022q4`: 1.0 — floats.
+4. ✅ Sharpe OOS 2022Q2: −0.422 / 2022Q4: −2.119 — reportados.
+5. ✅ Cero ficheros modificados.
+
+---
+
+**Veredicto v3a — aplicando gates pre-registrados, inmutables:**
+
+| Gate | Condición | Resultado |
+|---|---|---|
+| Anti-overfitting IS | ≥2 eventos fuera de 2022, Taper 2013 y COVID 2020 explícitamente | ❌ Ninguno de los dos disparó |
+| Exposición Q2+Q4 2022 ≥ 50% | 1.0 / 1.0 | ✅ |
+| Sharpe OOS 2022Q2 ≥ −0.5 | −0.422 | ✅ (por los pelos) |
+| Sharpe OOS 2022Q4 ≥ −0.5 | −2.119 | ❌ |
+
+**v3a no pasa. Dos gates fallidos. No arrancamos v3b.**
+
+El diagnóstico del TL es correcto y crítico: P90 = 0.0296 convierte el overlay en reducción de vol casi permanente, no en filtro de régimen. Un overlay de vol-scaling no puede mejorar el Sharpe — si retornos y volatilidad escalan por el mismo factor, el ratio es invariante. El diseño era estructuralmente inadecuado para el problema que intentaba resolver.
+
+**Consecuencia según los criterios pre-registrados:** debate de rediseño antes de cualquier siguiente iteración. A1, A2 — el problema de 2022Q2/Q4 sigue abierto. La pregunta concreta que necesito que respondan: ¿el overlay correcto es de *exclusión condicional* (peso cero a activos específicos cuando correlación supera umbral) en lugar de vol-scaling? ¿O el problema requiere revisar la señal base? Quiero propuesta justificada antes de sintetizar el siguiente sprint.
+
+_Sesión de ejecución de Claude Code: `213bed98`_
+
+---

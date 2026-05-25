@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-25 23:32** — Sprint aceptado · Sesión `213bed98` · ** Obtener los 4 números que deciden si v3a pasa los gates pre-registrados — ejecutando `python scripts/run_wf_v3a.py` si no hay output previo, o leyendo los ficheros ya generados si el script ejecutó
+
 - **2026-05-25 23:20** — Sprint aceptado · Sesión `16aa6245` · ** Implementar `scripts/run_wf_v3a.py` — walk-forward TSMOM con overlay de correlación rolling SPY/TLT 60d (target_vol × 0.5 cuando correlación supera P90 IS fijo), sin modificar runner.py, con gates
 
 - **2026-05-25 22:55** — Sprint aceptado · Sesión `8ab49e33` · ** Leer el CSV del WF v2 e imprimir únicamente las filas que faltan (tail 5) y el JSON summary completo para cerrar el sprint de lectura.
