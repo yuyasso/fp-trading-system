@@ -1462,3 +1462,168 @@ TL, ¿algún bloqueante para esta extensión? Si tienes acceso a los datos FRED 
 _Sesión de ejecución de Claude Code: `3697e4f6`_
 
 ---
+
+## 2026-05-28 18:07 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Extender el dict `_FOMC_RATES` en `scripts/run_wf.py` con el historial FOMC 2004–2021 y re-ejecutar el one-liner de diagnóstico para obtener el número de ciclos independientes que activa una de las dos ramas pre-registradas.
+
+---
+
+**Archivos a crear/modificar:**
+```
+scripts/run_wf.py    ← único fichero — solo el dict _FOMC_RATES
+```
+
+---
+
+**Implementación:**
+
+**Paso 0 — Leer antes de modificar:**
+Leer `scripts/run_wf.py` entero. Localizar `_FOMC_RATES`, confirmar el tipo de clave (¿`date` objects o strings ISO?) para mantener consistencia en las entradas nuevas.
+
+**Paso 1 — Extender `_FOMC_RATES`:**
+
+Añadir las siguientes entradas al dict, respetando el mismo formato de clave que las entradas existentes:
+
+```
+# Ciclo Greenspan — hiking 2004-2006
+2004-06-30: 1.25
+2004-08-10: 1.50
+2004-09-21: 1.75
+2004-11-10: 2.00
+2004-12-14: 2.25
+2005-02-02: 2.50
+2005-03-22: 2.75
+2005-05-03: 3.00
+2005-06-30: 3.25
+2005-08-09: 3.50
+2005-09-20: 3.75
+2005-11-01: 4.00
+2005-12-13: 4.25
+2006-01-31: 4.50
+2006-03-28: 4.75
+2006-05-10: 5.00
+2006-06-29: 5.25
+
+# Easing post-Greenspan + crisis 2007-2008
+2007-09-18: 4.75
+2007-10-31: 4.50
+2007-12-11: 4.25
+2008-01-22: 3.50
+2008-01-30: 3.00
+2008-03-18: 2.25
+2008-04-30: 2.00
+2008-10-08: 1.50
+2008-10-29: 1.00
+2008-12-16: 0.25
+
+# ZLB placeholder — not a real FOMC decision date; used for IS FFR lookups only
+2009-01-01: 0.25
+
+# Ciclo Yellen — hiking 2015-2018
+2015-12-16: 0.50
+2016-12-14: 0.75
+2017-03-15: 1.00
+2017-06-14: 1.25
+2017-12-13: 1.50
+2018-03-21: 1.75
+2018-06-13: 2.00
+2018-09-26: 2.25
+2018-12-19: 2.50
+
+# Easing Powell 2019 + COVID 2020
+2019-07-31: 2.25
+2019-09-18: 2.00
+2019-10-30: 1.75
+2020-03-03: 1.25
+2020-03-15: 0.25
+```
+
+Sin tocar ninguna función — solo el dict.
+
+**Paso 2 — Re-ejecutar el one-liner de diagnóstico:**
+
+```bash
+cd ~/development/fp-trading-system
+python -c "
+import pandas as pd, glob, sys
+sys.path.insert(0, 'scripts')
+from run_wf import _FOMC_RATES
+
+fomc_dates = sorted(_FOMC_RATES.keys())
+print(f'Dict cubre: {min(fomc_
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Extensión `_FOMC_RATES` y re-diagnóstico IS (sesión `2155c415`)
+
+**Entregado:**
+- `scripts/run_wf.py` — dict `_FOMC_RATES` extendido de 25 a 67 entradas, cubriendo 2004-06-30 → 2026-04-29 (Greenspan, easing 2007-08, ZLB placeholder, Yellen, Powell 2019-20)
+- `tests/unit/test_run_wf_helpers.py` — ajuste menor de un test (ver Desviaciones)
+
+---
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| Cobertura dict `2004-... → 2026-...` | ✅ 67 entradas confirmadas |
+| Tabla trimestres con ambas condiciones | ✅ impresa — vacía |
+| Número de ciclos reportado | ✅ 0 |
+| Rama activada en stdout | ✅ `CERRAR línea de overlays` |
+| `test_run_wf_helpers.py` sin regresiones | ✅ 21/21 |
+| Solo `run_wf.py` modificado | ⚠️ también `test_run_wf_helpers.py` |
+
+---
+
+**Desviaciones del plan**
+
+Una: el criterio 6 exigía que `git diff` mostrara únicamente `run_wf.py`. Se tocó también `tests/unit/test_run_wf_helpers.py` porque `test_get_ffr_on_date_before_dict` usaba `date(2020, 1, 1)` como fecha "anterior al dict" — que ahora devuelve 1.75 (FFR real en esa fecha). Se actualizó a `date(2003, 1, 1)` para mantener la semántica del test. La modificación es correcta y necesaria: no hacerlo hubiera dejado un test con un assert semánticamente roto. Lo acepto.
+
+---
+
+**Deuda técnica**
+
+Ninguna nueva. El placeholder ZLB `2009-01-01` lleva el comentario explícito que exigía A1 y el PO.
+
+---
+
+**Riesgos descubiertos**
+
+El resultado `0 ciclos` es ahora empíricamente válido, no vacío por datos ausentes. La cobertura temporal está confirmada. Lo que el one-liner nos dice es que **ningún trimestre IS 2005–2021 con FFR delta > 100bps tuvo retorno TSMOM negativo simultáneamente** — lo que cuadra con la expectativa a priori de A1 (mercado alcista en 2005–06 compensó la pérdida de TLT; ciclo Yellen demasiado gradual para superar el umbral de 100bps en 6m).
+
+---
+
+**Próximo paso recomendado**
+
+El criterio binario pre-registrado se activa: `< 3 ciclos → CERRAR línea de overlays`. La decisión que corresponde ahora no es técnica — es la que el PO reservó para esta rama: ¿toleramos que TSMOM 12m/quarterly tenga este régimen de falla documentado (2 fallos en 18 ventanas, tail event 450bps) como condición conocida de paper trading a tamaño reducido? Eso requiere debate de hipótesis macro, no código.
+
+**PO: el criterio de aceptación único está cumplido. El número es 0, la rama es `< 3`. El veredicto sobre qué debate abre esta rama es tuyo.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+El criterio de aceptación único se cumple: el número de ciclos independientes está reportado (0), la rama activada está impresa en stdout (`CERRAR línea de overlays`), y el dict cubre el período IS completo (67 entradas, 2004→2026).
+
+**Sobre la desviación del criterio 6** (test modificado además de `run_wf.py`): justificada. El test `test_get_ffr_on_date_before_dict` tenía una fecha semánticamente rota tras la extensión del dict — no corregirlo hubiera dejado un assert falso que pasa por razón equivocada. Acepto la modificación.
+
+**Deuda que registro:** ninguna nueva. El placeholder ZLB lleva el comentario explícito requerido.
+
+---
+
+**Veredicto sobre la rama activada — pre-registrado, inamovible:**
+
+La rama `< 3 ciclos` cierra definitivamente la línea de overlays FFR. El resultado 0 es empíricamente válido (cobertura temporal confirmada), no vacío por datos ausentes.
+
+El debate que abre esta rama es el que reservé: ¿toleramos que TSMOM 12m/quarterly tenga este régimen de falla documentado como condición conocida de paper trading a tamaño reducido? Eso no es una pregunta técnica — es una decisión de hipótesis macro sobre si los próximos años tienen más episodios inflacionarios que el IS 2005–2021.
+
+**A1, A2: necesito vuestra posición sobre esa hipótesis antes de sintetizar el siguiente paso.** Dos preguntas concretas:
+1. ¿El tail event 2022 (450bps en 12m) es un outlier histórico o el nuevo régimen de referencia para la próxima década?
+2. ¿TSMOM 12m/quarterly con 2 fallos en 18 ventanas OOS (ambos en el mismo régimen excepcional) es aceptable para paper trading a tamaño reducido, o primero rediseñamos la señal?
+
+_Sesión de ejecución de Claude Code: `2155c415`_
+
+---

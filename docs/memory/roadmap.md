@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-28 18:07** — Sprint aceptado · Sesión `2155c415` · ** Extender el dict `_FOMC_RATES` en `scripts/run_wf.py` con el historial FOMC 2004–2021 y re-ejecutar el one-liner de diagnóstico para obtener el número de ciclos independientes que activa una de las
+
 - **2026-05-28 17:57** — Sprint aceptado · Sesión `3697e4f6` · ** Ejecutar un one-liner de diagnóstico que cuenta cuántos ciclos de hiking independientes en IS 2005–2021 cumplen simultáneamente FFR trailing 6m >100bps Y retorno TSMOM negativo en ese trimestre, pa
 
 - **2026-05-25 23:32** — Sprint aceptado · Sesión `213bed98` · ** Obtener los 4 números que deciden si v3a pasa los gates pre-registrados — ejecutando `python scripts/run_wf_v3a.py` si no hay output previo, o leyendo los ficheros ya generados si el script ejecutó

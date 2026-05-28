@@ -43,7 +43,7 @@ def test_get_ffr_on_date_between_decisions() -> None:
 
 def test_get_ffr_on_date_before_dict() -> None:
     """Date before all entries → returns 0.0."""
-    result = get_ffr_on_date(date(2020, 1, 1), _FOMC_RATES)
+    result = get_ffr_on_date(date(2003, 1, 1), _FOMC_RATES)
     assert result == 0.0
 
 

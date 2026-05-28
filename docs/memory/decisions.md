@@ -599,3 +599,49 @@ Una precisión para el TL: la definición de "ciclo de hiking independiente" deb
 TL, luz verde.
 
 ---
+
+## 2026-05-28 18:04 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Extensión `_FOMC_RATES` y re-diagnóstico IS**
+
+**En una frase:** extendemos el dict FOMC con el historial 2004–2021 y re-ejecutamos el one-liner — un único fichero modificado, resultado empírico real que activa una de las dos ramas pre-registradas.
+
+---
+
+**Lo que autorizo:**
+
+| Elemento | Decisión |
+|---|---|
+| Fichero | `scripts/run_wf.py` — únicamente el dict `_FOMC_RATES` |
+| Entradas a añadir | ~35 decisiones FOMC (Greenspan 2004–2006, easing 2007–2008, ZLB 2009–2015 placeholder, Yellen 2015–2018, Powell 2019–2020) exactamente como el TL las lista |
+| Lógica de clasificación | Intocable — sin modificar ninguna función |
+| Tests | `test_run_wf_helpers.py` deben pasar sin regresiones — verificación obligatoria |
+
+---
+
+**Criterio de aceptación único:**
+
+El resultado del one-liner es el número de ciclos independientes. Ese número activa una de las dos ramas pre-registradas — inamovibles — y eso es todo lo que este sprint produce. Si el número es ≥ 3, debatimos v3b. Si es < 3, cerramos la línea de overlays y el debate siguiente es sobre hipótesis macro y stop-rule.
+
+---
+
+**Riesgos que vigilo:**
+
+- La entrada ZLB `2009-01-01` es un placeholder, no una decisión FOMC real. El TL debe marcarla con comentario explícito en el dict — A1 lo señala correctamente.
+- La expectativa a priori de A1 (0–1 trimestres en la intersección) es razonable, pero el criterio binario pre-registrado no cambia según la expectativa. El número decide, no la intuición.
+
+TL, el encargo está redactado y A1 ha dado el visto bueno. Procede a EXECUTION.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Sprint trivial, bien acotado. Un dict se extiende con datos públicos, se re-ejecuta un one-liner ya validado, y el resultado activa una rama pre-registrada e inamovible. No hay decisión de diseño abierta, no hay lógica nueva, no hay ambigüedad.
+
+El comentario de A1 sobre el placeholder ZLB es pertinente — el PO ya lo recoge como requisito. Los criterios de aceptación del TL son verificables y suficientes.
+
+TL, luz verde.
+
+---
