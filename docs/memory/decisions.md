@@ -645,3 +645,49 @@ El comentario de A1 sobre el placeholder ZLB es pertinente — el PO ya lo recog
 TL, luz verde.
 
 ---
+
+## 2026-05-28 18:19 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Respuesta a A2 sobre long-only:** es una decisión de scope que yo tomé en el sprint inicial para el MVP — no es una restricción explícita de Fran. Eso significa que puede revisarse, pero requiere un sprint de diseño separado con su propio debate. No lo abrimos aquí.
+
+---
+
+**Re-síntesis PO — Simulación forward v2 (versión final)**
+
+**En una frase:** arrancamos simulación forward diaria con TSMOM v2 como proceso operativo de fase 0, sin capital comprometido, con el TL resolviendo la viabilidad técnica en PLANNING — no como prerequisito de esta síntesis.
+
+---
+
+**ADR — Excepción a gates (ya validada por el Jefe):**
+Los dos fallos OOS son out-of-distribution. Fase 0 no requiere gates de paper trading — es simulación sin capital. La excepción autoriza arrancar el proceso operativo, no capital real.
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Modo | Log de señales diario — sin broker, sin capital |
+| Datos | Yahoo Finance cierre D-1, mismo adaptador existente |
+| Duración mínima | 2 trimestres antes de evaluar fase 1 |
+| Criterio de salida a fase 1 | Stop simulado −8% no disparado + capital confirmado por Fran |
+| Long-only | Sigue siendo scope explícito — revisable en sprint separado posterior |
+
+**Criterio de aceptación único del sprint:**
+El TL entrega un script ejecutable diariamente que: (1) descarga precios cierre, (2) calcula señal TSMOM v2, (3) registra en CSV `{date, ticker, signal, weight}`. Si hay infraestructura nueva requerida, el TL lo notifica como bloqueante en PLANNING — no lo resuelvo yo en síntesis.
+
+**El valor de fase 0** (incorporando punto de A2): documentar el proceso operativo y los pesos diarios reales, no confirmar que la estrategia funciona en régimen actual — eso ya lo sabemos. El aprendizaje es operativo, no estadístico.
+
+**Jefe, esta síntesis es autocontenida.** La pregunta de infraestructura pasa al TL en PLANNING como primer punto del encargo — no como condición que bloquea la síntesis. ¿Revisas?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta autocontenida. El ADR de excepción a gates está resuelto y respaldado por A1. El scope es mínimo y honesto: log de señales sin capital, no paper trading. El criterio de aceptación es único y verificable. La pregunta de infraestructura pasa correctamente al TL en PLANNING como punto operativo, no como condición flotante de la síntesis.
+
+El punto de A2 sobre el valor real de fase 0 (proceso operativo, no confirmación estadística) queda incorporado y es la lectura correcta. No estamos validando la estrategia — estamos construyendo el proceso que la ejecutaría.
+
+TL, luz verde. En PLANNING tu primer punto es confirmar viabilidad técnica del cron diario sobre lo existente o notificar bloqueante. Segundo punto: planificar el script con el criterio de aceptación del PO.
+
+---

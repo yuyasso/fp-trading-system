@@ -1627,3 +1627,121 @@ El debate que abre esta rama es el que reservé: ¿toleramos que TSMOM 12m/quart
 _Sesión de ejecución de Claude Code: `2155c415`_
 
 ---
+
+## 2026-05-28 18:28 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Implementar `scripts/run_daily_signal.py` — script ejecutable diariamente que descarga precios de cierre, calcula señal TSMOM v2 y registra pesos en un CSV log persistente (simulación forward fase 0, sin capital ni broker).
+
+**Viabilidad de infraestructura (punto 1 del Jefe):** viable sobre lo existente. Yahoo Finance cierre D-1 vía `yf.download`, mismo adaptador, sin datos intraday ni broker. Basta un cron diario (`python scripts/run_daily_signal.py`). Sin dependencias nuevas.
+
+---
+
+**Archivos a crear/modificar:**
+
+```
+scripts/run_daily_signal.py               ← nuevo (script ejecutable diario)
+tests/unit/test_run_daily_signal_helpers.py ← nuevo (TDD helpers)
+results/forward_sim/.gitkeep              ← crear directorio de log persistente
+```
+
+Sin tocar: `runner.py`, `run_wf.py`, `run_is.py`, adaptadores, tests existentes.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Leer antes de escribir:**
+```
+src/trading/backtest/runner.py             ← helpers: _compute_monthly_signal, _compute_ewma_vol_weight, _pivot_ohlcv
+src/trading/adapters/yfinance_adapter.py   ← firma de descarga de datos
+scripts/run_wf.py                          ← referencia de constantes (_TICKERS, _EWMA_LAMBDA, _TARGET_VOL)
+```
+
+**Constantes de módulo:**
+```python
+_TICKERS         = ["SPY", "TLT", "GLD", "DBC", "UUP"]
+_LOOKBACK_MONTHS = 12
+_TARGET_VOL      = 0.10
+_EWMA_LAMBDA     = 0.94
+_LOG_PATH        = Path("results/forward_sim/signal_log.csv")
+_DOWNLOAD_DAYS   = 400  # ~13 meses de días naturales para garantizar lookback completo
+```
+
+**Helpers testeables (funciones públicas del módulo):**
+
+**`compute_current_signals(close: pd.DataFrame, as_of: date, lookback_months: int) -> dict[str, int]`**
+Recibe DataFrame de precios cierre (columnas = tickers, índice = fecha), devuelve `{ticker: signal}` donde signal ∈ {1, 0}. Signal = 1 si el retorno de los últimos `lookback_months` meses (resample mensual) es positivo, 0 si negativo o NaN (long-only, no shorts). `as_of` es la fecha de referencia — el 
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — `scripts/run_daily_signal.py` (simulación forward fase 0)
+
+**Entregado:**
+- `scripts/run_daily_signal.py` — script ejecutable diario con 4 helpers públicos testeables: `compute_current_signals`, `compute_current_weights`, `is_date_already_logged`, `append_to_log`
+- `tests/unit/test_run_daily_signal_helpers.py` — 14 tests, cero llamadas de red
+- `results/forward_sim/.gitkeep` — directorio de log persistente creado
+
+**Validaciones**
+
+| Check | Resultado |
+|---|---|
+| Tests nuevos (14/14) | ✅ |
+| Suite completa | ✅ 134/134 (sin regresiones sobre base 124) |
+| `ruff check` | ✅ 0 errores |
+| Ejecución real 2026-05-28 | ✅ CSV generado con 5 filas |
+| Idempotencia (segunda ejecución) | ✅ "Ya registrado 2026-05-28", sin duplicados |
+| `git diff runner.py` | ✅ vacío |
+
+**Desviaciones del plan**
+
+Ninguna reportada. El resumen de Claude Code es limpio — 14 tests cubren exactamente los casos especificados y el flujo `__main__` sigue el orden planificado.
+
+**Resultado operativo del día**
+
+Todos los 5 tickers (SPY, TLT, GLD, DBC, UUP) con signal=1 y pesos normalizados a 1.0 (cada activo habría alcanzado el target_vol individualmente, activando normalización). Esto es consistente con el régimen actual: mercado con momentum 12m positivo en todos los activos del universo.
+
+**Deuda técnica**
+
+- La lógica de señal y sizing está **duplicada** entre `run_daily_signal.py` y `runner.py` (misma lógica de `_compute_monthly_signal`/`_compute_ewma_vol_weight`, reimplementada en los helpers del script). Ya estaba registrada como patrón aceptado en sprints anteriores — misma deuda que `compute_asset_attribution`. No empeora, pero cuando se limpie el paquete habrá tres puntos de duplicación que consolidar.
+- El guard de día de mercado (¿es hoy un día hábil?) no está implementado. Si el script corre un sábado o festivo, descarga datos y registra la fecha de hoy aunque el mercado no haya cerrado. Para fase 0 es aceptable — para fase 1 con capital real, no lo sería.
+
+**Riesgos descubiertos**
+
+La normalización de pesos cuando todos los activos tienen señal positiva y `target_vol` individual > 1/N implica que los 5 activos comparten peso equitativo (0.20 cada uno). Esto es correcto por el diseño long-only con vol-scaling, pero significa que el sizing no distingue entre activos con distinta volatilidad si todos superan el umbral — el activo más volátil y el más defensivo reciben el mismo peso. No es un bug, es una consecuencia del diseño; pero conviene que el PO lo sepa antes de interpretar los logs de fase 0.
+
+**Próximo paso recomendado**
+
+Configurar el cron para ejecución diaria automática. El script ya es idempotente — basta añadir una línea a crontab. Si Fran tiene infraestructura donde quiere correrlo (servidor, máquina local), el TL puede redactar el comando exacto en 30 segundos.
+
+**PO: los 7 criterios de aceptación están cubiertos. La decisión es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 7 criterios que definí están cumplidos sin excepción:
+
+1. ✅ 14/14 tests `test_run_daily_signal_helpers.py` en verde, sin llamadas de red.
+2. ✅ 134/134 tests — sin regresiones sobre la base de 124.
+3. ✅ `ruff check` 0 errores.
+4. ✅ Script ejecuta y genera `results/forward_sim/signal_log.csv` con 5 filas para 2026-05-28.
+5. ✅ Segunda ejecución: "Ya registrado 2026-05-28", sin duplicados — idempotencia confirmada.
+6. ✅ CSV con exactamente 5 filas para la fecha ejecutada.
+7. ✅ `git diff runner.py` vacío — runner intocable.
+
+**Deuda técnica que registro (no penaliza):**
+- Duplicación de lógica de señal/sizing entre `run_daily_signal.py` y `runner.py` — patrón ya aceptado, consolida cuando se limpie el paquete.
+- Guard de día hábil ausente — aceptable para fase 0, obligatorio antes de fase 1 con capital real.
+- Normalización equitativa cuando todos los activos tienen signal=1: el sizing no distingue volatilidades en ese caso. Lo registro como comportamiento conocido para interpretar correctamente los logs de fase 0.
+
+**Estado operativo de fase 0:** activo desde hoy. Simulación forward arrancada con todos los 5 tickers con signal=1.
+
+**Próximo paso:** configurar el cron para ejecución diaria automática. TL, redacta el comando exacto de crontab en el siguiente turno — es el único paso pendiente para que fase 0 sea completamente autónoma.
+
+_Sesión de ejecución de Claude Code: `797cdc58`_
+
+_Sesión de ejecución de Claude Code: `797cdc58`_
+
+---
