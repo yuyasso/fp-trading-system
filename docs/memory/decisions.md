@@ -553,3 +553,49 @@ Sprint de ejecución pura, cero ambigüedad. El script está implementado, teste
 TL, ejecuta y trae los números. El PO aplica los gates cuando los tenga.
 
 ---
+
+## 2026-05-28 17:52 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Verificación de masa estadística antes de cualquier v3b**
+
+**En una frase:** antes de diseñar cualquier overlay o cambiar el horizonte de señal, ejecutamos un one-liner IS que decide de forma binaria y pre-registrada qué camino tomamos.
+
+---
+
+**Lo que propongo:**
+
+Un único sprint de diagnóstico, sin código nuevo en el repo principal. One-liner sobre los datos IS ya disponibles:
+
+> Contar cuántos *ciclos de hiking independientes* (no trimestres individuales) en IS 2005–2021 cumplen simultáneamente: FFR trailing 6m >100bps **Y** retorno TSMOM negativo en ese trimestre.
+
+**Criterio binario pre-registrado (inamovible antes de ver el resultado):**
+
+| Resultado | Consecuencia |
+|---|---|
+| ≥ 3 ciclos independientes | Diseñamos overlay FFR ex-ante como v3b |
+| < 3 ciclos independientes | Cerramos la línea de overlays. Debate único: ¿toleramos que TSMOM 12m/quarterly tenga este régimen de falla documentado (2 fallos en 18 ventanas, tail event de 450bps) como condición conocida de paper trading a tamaño reducido? |
+
+La independencia es por ciclo, no por trimestre — condición de A2 incorporada.
+
+---
+
+**Riesgos que vigilo:**
+
+- **Rama < 3:** la discusión sobre "¿relajamos el stop-rule?" no es técnica — es una decisión de hipótesis macro (¿esperamos más episodios inflacionarios en los próximos años?). Si llegamos a esa rama, **no procedo sin debate explícito del equipo sobre esa hipótesis antes de tocar ningún parámetro**.
+- **Alcance del one-liner:** este diagnóstico no abre sprint de implementación. Trae un número. Ese número activa una de las dos ramas. Nada más.
+
+TL, el encargo es un one-liner de lectura. Sin código nuevo, sin modificar el repo. ¿Algún bloqueante?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta limpia. Criterio binario pre-registrado antes de ver datos, independencia por ciclo (no trimestre), scope mínimo (un número, cero código nuevo), y ambas ramas con consecuencia definida.
+
+Una precisión para el TL: la definición de "ciclo de hiking independiente" debe quedar operacionalizada antes de ejecutar. Propongo: dos trimestres pertenecen al mismo ciclo si no hay un trimestre intermedio donde FFR trailing 6m < 100bps. Si A1/A2 tienen otra definición, que la expliciten ahora — no después de ver el resultado.
+
+TL, luz verde.
+
+---

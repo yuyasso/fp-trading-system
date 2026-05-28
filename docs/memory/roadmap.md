@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-28 17:57** — Sprint aceptado · Sesión `3697e4f6` · ** Ejecutar un one-liner de diagnóstico que cuenta cuántos ciclos de hiking independientes en IS 2005–2021 cumplen simultáneamente FFR trailing 6m >100bps Y retorno TSMOM negativo en ese trimestre, pa
+
 - **2026-05-25 23:32** — Sprint aceptado · Sesión `213bed98` · ** Obtener los 4 números que deciden si v3a pasa los gates pre-registrados — ejecutando `python scripts/run_wf_v3a.py` si no hay output previo, o leyendo los ficheros ya generados si el script ejecutó
 
 - **2026-05-25 23:20** — Sprint aceptado · Sesión `16aa6245` · ** Implementar `scripts/run_wf_v3a.py` — walk-forward TSMOM con overlay de correlación rolling SPY/TLT 60d (target_vol × 0.5 cuando correlación supera P90 IS fijo), sin modificar runner.py, con gates

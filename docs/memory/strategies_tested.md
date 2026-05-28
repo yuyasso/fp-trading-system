@@ -1322,3 +1322,143 @@ El diagnóstico del TL es correcto y crítico: P90 = 0.0296 convierte el overlay
 _Sesión de ejecución de Claude Code: `213bed98`_
 
 ---
+
+## 2026-05-28 17:57 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Ejecutar un one-liner de diagnóstico que cuenta cuántos ciclos de hiking independientes en IS 2005–2021 cumplen simultáneamente FFR trailing 6m >100bps Y retorno TSMOM negativo en ese trimestre, para activar uno de los dos caminos pre-registrados por el PO.
+
+---
+
+**Archivos a crear/modificar:** Ninguno. Sprint de ejecución y lectura pura — cero modificaciones al repo.
+
+---
+
+**Implementación:**
+
+Ejecutar desde `~/development/fp-trading-system` el siguiente script inline:
+
+```bash
+cd ~/development/fp-trading-system
+python -c "
+import pandas as pd, glob, sys
+sys.path.insert(0, 'scripts')
+from run_wf import _FOMC_RATES  # dict {date: ffr_pct} ya validado, 25 decisiones
+
+# 1. TSMOM quarterly returns desde IS CSV
+csvs = sorted(glob.glob('results/backtest/tsmom_is_*.csv'))
+eq = pd.read_csv(csvs[-1], index_col=0, parse_dates=True).squeeze()
+# equity como factores de crecimiento -> retornos diarios
+daily_ret = eq.pct_change().dropna()
+# retorno trimestral compuesto
+qret = (1 + daily_ret).resample('QS').prod() - 1
+
+# 2. FFR por fecha desde _FOMC_RATES
+fomc_dates = sorted(_FOMC_RATES.keys())
+fomc_series = pd.Series(
+    {d: _FOMC_RATES[d] for d in fomc_dates}, dtype=float
+)
+fomc_series.index = pd.to_datetime(fomc_series.index)
+
+def ffr_at(dt):
+    prior = fomc_series[fomc_series.index <= dt]
+    return float(prior.iloc[-1]) if not prior.empty else 0.0
+
+# 3. Para cada trimestre IS, calcular FFR trailing 6m (delta)
+results = []
+for qstart in qret.index:
+    if qstart.year < 2005 or qstart.year > 2021:
+        continue
+    ffr_now  = ffr_at(qstart)
+    ffr_6m   = ffr_at(qstart - pd.DateOffset(months=6))
+    delta    = ffr_now - ffr_6m
+    tsmom_q  = float(qret.get(qstart, float('nan')))
+    results.append({
+        'quarter': qstart.strftime('%YQ') + str((qstart.month-1)//3+1),
+        'ffr_delta_6m': round(delta, 3),
+        'tsmom_return': round(tsmom_q, 4),
+        'cond_ffr': delta > 1.0,          # >100bps
+        'cond_neg': tsmom_q < 0,
+        'both': delta 
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Diagnóstico masa estadística FFR (sesión `3697e4f6`)
+
+**Entregado:** Ejecución del one-liner de diagnóstico. Cero ficheros modificados. `git status` limpio.
+
+---
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| Tabla de trimestres con ambas condiciones | ✅ impresa (vacía) |
+| Lista de ciclos independientes | ✅ impresa (vacía) |
+| Número de ciclos reportado explícitamente | ✅ 0 |
+| Rama activada impresa en stdout | ✅ "CERRAR línea de overlays" |
+| Cero ficheros modificados | ✅ |
+
+---
+
+**Desviaciones del plan — bloqueador crítico**
+
+El resultado `0 ciclos` es **inválido por datos ausentes**, no por ausencia real de señal.
+
+`_FOMC_RATES` en `run_wf.py` solo cubre decisiones FOMC **2022–2026** (25 entradas). El período IS es **2006–2021**. Consecuencia: `ffr_at()` retorna `0.0` para los 64 trimestres IS, `ffr_delta_6m = 0` en todos ellos, y la condición `> 100bps` nunca se activa — el resultado es 0 por construcción, no empírico.
+
+Los dos ciclos de hiking que deberían evaluarse y están ausentes del dict:
+
+| Ciclo | Período | Delta estimado |
+|---|---|---|
+| Greenspan | 2004Q3–2006Q3 | +425 bps |
+| Yellen | 2015Q4–2018Q4 | +225 bps |
+
+Ambos caen dentro del IS y son los candidatos naturales a generar hits.
+
+---
+
+**Deuda técnica**
+
+`_FOMC_RATES` fue diseñado para clasificar régimen en el WF OOS (2022+), no para análisis IS histórico. No es un bug del sprint anterior — es un scope diferente. La extensión al historial FRED 2004–2021 requiere ~15 entradas adicionales (datos públicos, trivial de obtener).
+
+---
+
+**Riesgos descubiertos**
+
+El one-liner falló silenciosamente — no lanzó excepción, imprimió una tabla vacía y una conclusión numéricamente correcta pero empíricamente vacía. Sin el diagnóstico que añadí sobre la causa raíz, el resultado habría parecido válido. Los criterios de aceptación del sprint no incluían verificar la cobertura temporal del dict FOMC — ese fue el punto ciego.
+
+---
+
+**Próximo paso recomendado**
+
+Hay dos opciones con consecuencias distintas:
+
+1. **Extender `_FOMC_RATES` con historial FRED 2004–2021** y re-ejecutar. Resultado real. Es el camino correcto si el PO quiere la respuesta empírica al criterio binario pre-registrado.
+
+2. **Declarar el diagnóstico incompleto y saltar al debate de hipótesis macro** directamente. El PO ya sabe que el ciclo Greenspan y el ciclo Yellen existen — si la estimación a priori de A1/A2 es que habrá 1–2 ciclos IS con hits (no 3), el resultado del one-liner es predecible y el debate que activa la rama `< 3` puede abrirse sin ejecutar el dato exacto.
+
+Mi recomendación: opción 1, es un one-liner de extensión del dict, no un sprint. Pero la decisión de si vale la pena el paso adicional es del PO — si ya tiene opinión formada sobre la rama `< 3`, no necesita el número exacto.
+
+**PO: los 5 criterios de forma están cumplidos. El resultado es técnicamente correcto pero empíricamente vacío por cobertura insuficiente del dict FOMC. La decisión de si extendemos el dict o pasamos directamente al debate de hipótesis macro es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 5 criterios de forma están cumplidos: tabla impresa, lista de ciclos, número reportado explícitamente (0), rama activada en stdout, y repo limpio sin modificaciones.
+
+**Sobre el resultado vacío por datos ausentes:** el TL diagnosticó correctamente la causa raíz — `_FOMC_RATES` no cubre IS 2006–2021 — y lo notificó antes de cerrar. Esto es exactamente el comportamiento correcto. El sprint de diagnóstico cumplió su función: ejecutar el test y reportar el resultado con su contexto. El punto ciego en los criterios de aceptación (no exigir verificar la cobertura temporal del dict) es mío, no del TL.
+
+**Decisión sobre las dos ramas:**
+
+Opto por la opción 1: extender `_FOMC_RATES` con el historial FRED 2004–2021 y re-ejecutar. El criterio binario pre-registrado necesita el dato empírico real, no una estimación a priori. Con ~15 entradas adicionales (Greenspan 2004–2006, Yellen 2015–2018 como mínimo), el diagnóstico tiene el resultado que activa una de las dos ramas de forma definitiva.
+
+**Alcance estricto:** extensión del dict en `run_wf.py` con datos históricos FOMC + re-ejecución del one-liner. Sin abrir sprint de implementación. Sin modificar lógica de ningún script. El resultado del one-liner activa la rama — eso es todo.
+
+TL, ¿algún bloqueante para esta extensión? Si tienes acceso a los datos FRED históricos de la FFR (Federal Funds Rate efectiva o target range), procede directamente. Si necesitas que A1/A2 aporten las fechas y tasas exactas de los ciclos Greenspan y Yellen, indícalo ahora.
+
+_Sesión de ejecución de Claude Code: `3697e4f6`_
+
+---
