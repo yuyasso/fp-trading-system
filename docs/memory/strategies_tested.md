@@ -2058,3 +2058,89 @@ Gate 1 falla sin ambigüedad. Según los criterios pre-registrados: **debate cer
 _Sesión de ejecución de Claude Code: `674bd6d2`_
 
 ---
+
+## 2026-05-31 21:51 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+La propuesta validada no tiene componente de implementación — y el Jefe lo confirmó explícitamente: "TL, sin encargo."
+
+El estado del sistema es:
+- **Fase 0 operativa** desde 2026-05-28 con `run_daily_signal.py`. Sin código nuevo necesario.
+- **Hipótesis L/S cerrada** por datos empíricos. Nada que implementar en esa línea.
+- **Bloqueante para fase 1**: número concreto de Fran sobre fracción máxima de capital. Hasta que llegue, no hay sprint de implementación que sea legítimo.
+
+Forzar un encargo aquí sería scope creep explícito — el PO lo anticipó como riesgo en su propia síntesis.
+
+El siguiente encargo para Claude Code se activa en uno de estos dos escenarios:
+1. Fran responde el `[BLOQUEO_HUMANO_DIFERIDO]` y el equipo define criterios de fase 1 que requieran código.
+2. Transcurren dos trimestres de fase 0 y el análisis de calidad operativa del proceso genera trabajo técnico (guard de día hábil, consolidación de la duplicación de señal/sizing entre scripts, etc.).
+
+Hasta entonces, no hay encargo que redactar sin fabricarlo.
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Confirmación de estado de sistema (sesión `1707cd6d`)
+
+**Entregado:** Ningún artefacto técnico. La sesión verificó el estado del sistema y confirmó que no hay encargo activo pendiente de implementación.
+
+---
+
+**Validaciones**
+
+No aplica — ningún código ejecutado, ningún test corrido. El estado previo es 165/165 tests en verde, ruff limpio, runner intocable. No hay regresión posible porque no se tocó nada.
+
+---
+
+**Desviaciones del plan**
+
+Ninguna. El plan era explícitamente "no hay encargo que redactar" — y eso es lo que se entregó.
+
+---
+
+**Deuda técnica vigente (sin cambios)**
+
+| Ítem | Origen | Urgencia |
+|---|---|---|
+| Guard de día hábil en `run_daily_signal.py` | Sprint `797cdc58` | Fase 1 — no urgente ahora |
+| Duplicación lógica señal/sizing (runner + 3 scripts) | Patrón aceptado desde Sprint 4 | Limpieza de paquete futura |
+| Dependencia `compute_asset_attribution` sobre helpers `_`-prefixed | Sprint `770d5eb2` | Limpieza de paquete futura |
+
+---
+
+**Riesgos descubiertos**
+
+Ninguno nuevo. El único riesgo activo sigue siendo el operativo de fase 0: si el cron no está configurado, `run_daily_signal.py` no corre de forma autónoma. No hay confirmación explícita de que el cron esté activo en la máquina de Fran.
+
+---
+
+**Próximo paso recomendado**
+
+Dos caminos desbloqueantes, en este orden de prioridad:
+
+1. **Fran responde el `[BLOQUEO_HUMANO_DIFERIDO]`** sobre fracción máxima de capital → abre el debate de criterios de fase 1.
+2. **Confirmar que el cron de `run_daily_signal.py` está activo** — si no lo está, los "dos trimestres de fase 0" no se están acumulando y el criterio de salida a fase 1 es ficticio.
+
+PO: no hay criterios de aceptación que aplicar en este sprint — no hubo entregable técnico. El estado del sistema es el mismo que antes de la sesión.
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+El reporte de entrega no tiene entregable técnico que validar — el plan era explícitamente "sin encargo" y el TL lo ejecutó correctamente. No hay criterios de aceptación aplicables porque no hubo sprint de implementación.
+
+Lo que registro:
+
+- Fase 0 operativa desde 2026-05-28. El único riesgo activo que señala el TL (cron no confirmado) es relevante: sin cron activo, los dos trimestres de fase 0 no se acumulan y el criterio de salida a fase 1 es ficticio.
+
+[BLOQUEO_HUMANO_DIFERIDO] @Fran — dos preguntas pendientes que no bloquean fase 0 pero sí el siguiente debate:
+1. ¿Está el cron de `run_daily_signal.py` configurado y corriendo en tu máquina?
+2. ¿Qué fracción máxima de capital es aceptable para fase 1 dado un worst-case trimestral de ~1–2% en régimen normal?
+
+Sin respuesta a (1), no sabemos si fase 0 está generando datos reales. Sin respuesta a (2), fase 1 sigue siendo una etiqueta sin criterio operativo.
+
+**Estado del proyecto:** sin sprint activo. El próximo encargo se activa con la respuesta de Fran o con datos de fase 0 que analizar.
+
+_Sesión de ejecución de Claude Code: `1707cd6d`_
+
+---

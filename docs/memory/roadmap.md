@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-31 21:51** — Sprint aceptado · Sesión `1707cd6d` · La propuesta validada no tiene componente de implementación — y el Jefe lo confirmó explícitamente: "TL, sin encargo."
+
 - **2026-05-31 21:10** — Sprint aceptado · Sesión `674bd6d2` · ** Ejecutar `python scripts/run_is_v5.py` contra Yahoo Finance y reportar los valores de los 3 gates IS y los 4 deltas por sub-período que el PO necesita para aplicar los criterios pre-registrados.
 
 - **2026-05-31 18:36** — Sprint aceptado · Sesión `59c99ebf` · ** Implementar IS runner TSMOM long/short sobre SPY+TLT+GLD (v4) con costes de borrow explícitos y evaluación de los 3 gates IS pre-registrados.

@@ -905,3 +905,55 @@ Sprint de ejecución pura, cero ambigüedad. El script está implementado y test
 TL, ejecuta.
 
 ---
+
+## 2026-05-31 21:49 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+[BLOQUEO_HUMANO_DIFERIDO] @Fran — antes de formalizar cualquier fase 1, A2 señala que "tamaño reducido" necesita un número concreto tuyo: ¿qué fracción máxima de capital hace aceptable un drawdown trimestral del orden de 1–2% (worst case v2 en 2022)? Sin ese número, fase 1 es una etiqueta sin criterio de salida. Fase 0 continúa mientras tanto.
+
+---
+
+**Síntesis PO — Cierre hipótesis L/S y consolidación sobre L-only v2**
+
+**En una frase:** cerramos definitivamente la línea L/S (dos intentos, mismo diagnóstico estructural), confirmamos L-only v2 (SPY+TLT+GLD+DBC+UUP) como estrategia base con el tail risk de 2022 documentado explícitamente, y continuamos la fase 0 ya operativa mientras definimos los criterios numéricos para fase 1.
+
+---
+
+**Decisiones que tomo:**
+
+| Elemento | Decisión |
+|---|---|
+| Hipótesis L/S | Cerrada indefinidamente. Dos intentos (v4 y v5), Gate 1 falla en ambos. No se reintenta con este tipo de universo macro correlado. |
+| Estrategia base | L-only v2 — ya corriendo en fase 0 desde 2026-05-28. Sin sprint nuevo. |
+| Tail risk 2022 | Documentado como condición conocida: 2 fallos en 18 ventanas OOS, ambos en régimen inflacionario excepcional (>450bps en 12m). No ha aparecido en IS 2005–2021 ni una sola vez. |
+| Fase 0 | Continúa. El script `run_daily_signal.py` es el artefacto operativo. Criterio de salida a fase 1 pre-registrado: stop simulado −8% no disparado + capital confirmado por Fran. |
+
+---
+
+**Lo que bloquea fase 1 (no fase 0):**
+
+El bloqueo es una decisión de negocio de Fran, no técnica: qué fracción máxima de capital exponer dado un worst-case trimestral de ~1–2% drawdown en régimen normal y potencialmente mayor en un régimen inflacionario como 2022. Sin ese número, "tamaño reducido" no es un criterio operativo.
+
+---
+
+**Riesgos que registro:**
+
+- **No hay sprint de implementación aquí.** Si alguien propone código nuevo antes de que tengamos dos trimestres de fase 0, es scope creep.
+- **El L/S con futuros** que el TL menciona como opción (b) es una hipótesis completamente diferente — requiere broker distinto, estructura de costes diferente, y debate nuevo desde cero. No la abro ahora.
+
+TL, no hay encargo técnico este turno. El siguiente sprint se activa cuando Fran defina el número de fase 1 o cuando los dos trimestres de fase 0 generen datos que debatir.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta limpia y disciplinada. El cierre de L/S está respaldado por datos empíricos en dos universos distintos — no es una opinión, es un resultado reproducible con gates pre-registrados. La consolidación sobre L-only v2 no requiere sprint nuevo porque ya está operativa en fase 0 desde el 28 de mayo.
+
+El bloqueo diferido a Fran está correctamente etiquetado y no contamina la decisión técnica: fase 0 sigue sin pausa, fase 1 espera un número concreto de capital. A2 tiene razón — "tamaño reducido" sin cifra no es un criterio operativo.
+
+Un punto que registro para el equipo: cuando los dos trimestres de fase 0 se cumplan, el debate no es solo "¿se disparó el stop del −8%?". También debe incluir una revisión de la calidad operativa del proceso — si el cron falló días, si Yahoo tuvo gaps, si las señales fueron consistentes con lo esperado. Eso no requiere sprint ahora, pero que nadie lo olvide cuando llegue el momento.
+
+TL, sin encargo. Esperamos datos de fase 0 o decisión de Fran.
+
+---
