@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-05-31 18:36** — Sprint aceptado · Sesión `59c99ebf` · ** Implementar IS runner TSMOM long/short sobre SPY+TLT+GLD (v4) con costes de borrow explícitos y evaluación de los 3 gates IS pre-registrados.
+
 - **2026-05-28 18:28** — Sprint aceptado · Sesión `797cdc58` · ** Implementar `scripts/run_daily_signal.py` — script ejecutable diariamente que descarga precios de cierre, calcula señal TSMOM v2 y registra pesos en un CSV log persistente (simulación forward fase
 
 - **2026-05-28 18:07** — Sprint aceptado · Sesión `2155c415` · ** Extender el dict `_FOMC_RATES` en `scripts/run_wf.py` con el historial FOMC 2004–2021 y re-ejecutar el one-liner de diagnóstico para obtener el número de ciclos independientes que activa una de las

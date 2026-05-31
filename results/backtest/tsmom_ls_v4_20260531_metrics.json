@@ -1,0 +1,31 @@
+{
+  "sharpe_ls_net": 1.5395927466617692,
+  "max_drawdown_ls": -0.06835864677932683,
+  "n_rebalances": 192,
+  "subperiod_sharpes_ls": {
+    "2005-08": 1.4875260207218015,
+    "2009-13": 1.8437113648385453,
+    "2014-18": 1.041745540183749,
+    "2019-21": 1.9460341586926984
+  },
+  "subperiod_sharpes_lo": {
+    "2005-08": 1.49490032330581,
+    "2009-13": 1.7334529038624331,
+    "2014-18": 1.1831352724334048,
+    "2019-21": 2.2115177546570335
+  },
+  "gate1_subperiod_improvement": false,
+  "gate1_periods_passing": 0,
+  "gate1_detail": {
+    "2005-08": -0.0073743025840085075,
+    "2009-13": 0.11025846097611214,
+    "2014-18": -0.1413897322496558,
+    "2019-21": -0.26548359596433513
+  },
+  "gate2_greenspan_ok": false,
+  "gate2_concentration_ratio": null,
+  "gate3_sharpe_net_ok": true,
+  "gate3_sharpe_net": 1.5395927466617692,
+  "all_gates_pass": false,
+  "bias_note": "ADR: L/S designed knowing 2022 failed long-only. Justification: Moskowitz et al. 2012 economic rationale (momentum symmetric). Sub-period gate mitigates selection bias."
+}

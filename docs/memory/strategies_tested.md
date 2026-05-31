@@ -1745,3 +1745,143 @@ _Sesión de ejecución de Claude Code: `797cdc58`_
 _Sesión de ejecución de Claude Code: `797cdc58`_
 
 ---
+
+## 2026-05-31 18:36 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Implementar IS runner TSMOM long/short sobre SPY+TLT+GLD (v4) con costes de borrow explícitos y evaluación de los 3 gates IS pre-registrados.
+
+---
+
+**Archivos a crear/modificar:**
+```
+src/trading/backtest/runner.py                ← añadir run_backtest_ls (adición pura)
+tests/unit/backtest/test_runner.py            ← tests para run_backtest_ls
+scripts/run_is_v4.py                          ← nuevo script IS long/short
+tests/unit/test_run_is_v4_helpers.py          ← nuevo (TDD helpers)
+```
+Sin tocar: `run_is.py`, `run_wf.py`, `run_daily_signal.py`, adaptadores, ningún test existente.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Leer antes de escribir:**
+```
+src/trading/backtest/runner.py                ← leer ENTERO — entender _compute_monthly_signal,
+                                                _compute_ewma_vol_weight, run_backtest_range,
+                                                cómo se construye daily_asset_returns y equity
+tests/unit/backtest/test_runner.py            ← no romper los tests existentes
+scripts/run_is.py                             ← importar compute_subperiod_sharpes desde aquí
+```
+
+---
+
+**Extensión de `runner.py` — función `run_backtest_ls`:**
+
+```python
+def run_backtest_ls(
+    tickers: list[str],
+    start: date,
+    end: date,
+    borrow_costs: dict[str, float],
+    lookback_months: int = 12,
+    target_vol: float = 0.10,
+) -> tuple[pd.Series, PerformanceReport]:
+    # LS: no OOS guard — IS/WF use only
+```
+
+Diferencias respecto a `run_backtest_range`:
+- `borrow_costs`: tasas anuales por ticker. Ticker ausente del dict → 0.0.
+- **Signal ∈ {+1, −1}**: transformar señal existente con `signal_ls = signal_lo.replace(0, -1)` o equivalente vectorizado. Nunca posición cero — si momentum ≤ 0 o NaN → −1.
+- Vol-weight aplicado simétricamente: el peso escala igual en largo y en corto (misma magnitud, distinto signo).
+- **Borrow cost** se aplica solo a posiciones cortas (signal=−1) sobre el peso absoluto:
+  - signal=+1: `net_return = asset_re
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — IS runner TSMOM long/short v4
+
+**Entregado:**
+- `src/trading/backtest/runner.py` — adición pura de `run_backtest_ls` con signal ∈ {+1,−1}, borrow cost en posiciones cortas, entry en `open[t+1]`
+- `scripts/run_is_v4.py` — IS runner L/S con helpers `compute_greenspan_concentration` y `evaluate_is_gates`, CSV + JSON + PNG en `results/backtest/`
+- `tests/unit/backtest/test_runner.py` — 4 tests nuevos para `run_backtest_ls`
+- `tests/unit/test_run_is_v4_helpers.py` — 10 tests para los helpers IS v4
+
+**Validaciones**
+
+| Check | Resultado |
+|---|---|
+| Tests nuevos | ✅ 14/14 |
+| Suite completa | ✅ 148/148 (sin regresiones) |
+| `ruff check` | ✅ 0 errores |
+| `git diff runner.py` solo adiciones | ✅ 0 líneas eliminadas |
+| CSV + JSON + PNG generados | ✅ |
+| `all_gates_pass`, `bias_note`, 3 gates en JSON | ✅ |
+
+**Desviaciones del plan**
+
+Una, menor: los booleanos de `evaluate_is_gates` se serializaban como `numpy.bool_`, no como `bool` nativo — JSON no los admite. Claude Code los envolvió con `bool()` y `float()` antes de persistir. Corrección correcta y necesaria; no cambia la lógica.
+
+**Resultado de gates IS — los números reales**
+
+| Gate | Condición | Resultado |
+|---|---|---|
+| Gate 1: mejora incremental ≥0.15 en ≥3 de 4 sub-períodos | 0 de 4 sub-períodos con delta ≥ 0.15 | **FALLA** |
+| Gate 2: concentración Greenspan < 50% | Suma de deltas ≤ 0 → concentración NaN | **FALLA** |
+| Gate 3: Sharpe L/S neto ≥ 1.4 | Sharpe = 1.54 | Pasa |
+| `all_gates_pass` | — | **False** |
+
+El hallazgo crítico: **long/short no mejora sobre long-only en ninguno de los 4 sub-períodos IS**. Los deltas son negativos o por debajo de 0.15 en los cuatro. Sharpe agregado IS 1.54 frente a 1.61 long-only — la versión simétrica es *peor* en el IS histórico.
+
+**Deuda técnica**
+
+Ninguna nueva. La duplicación de lógica de señal/sizing entre scripts sigue activa (preexistente, registrada).
+
+**Riesgos descubiertos**
+
+El resultado no es un bug de implementación — es el resultado real. La hipótesis de que TSMOM L/S domina L-only en el período IS 2005–2021 no se sostiene sobre SPY+TLT+GLD. El ciclo ZLB (TLT largo el ~70% del IS) implica que los cortos en TLT se concentran en períodos cortos de hiking, y en esos mismos períodos SPY también tiene momentum positivo — el portfolio L/S no gana coherentemente sobre L-only en el IS disponible.
+
+**Próximo paso recomendado**
+
+Los gates pre-registrados son inamovibles. Gate 1 y Gate 2 fallan sin ambigüedad — el debate de rediseño se activa antes de tocar OOS, como estaba acordado. La conversación que toca ahora es la que el Jefe anticipó: si L/S sobre este universo no pasa IS, ¿el problema es el universo (3 activos, dominado por QE), la señal (12m lookback demasiado lento para capturar reversiones de momentum), o la hipótesis de partida? Esa es una pregunta de A1 y A2, no técnica.
+
+**PO: los 8 criterios de aceptación están cubiertos. Los gates IS fallan por resultado empírico, no por fallo de implementación. La decisión es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 8 criterios que definí están cumplidos sin excepción:
+
+1. ✅ 4 tests nuevos `run_backtest_ls` en verde + 134 existentes intactos — 148/148.
+2. ✅ 10/10 tests `test_run_is_v4_helpers.py`.
+3. ✅ Suite completa sin regresiones.
+4. ✅ `ruff check` 0 errores.
+5. ✅ `git diff runner.py` — solo adición de `run_backtest_ls`, cero líneas eliminadas.
+6. ✅ CSV + JSON + PNG generados sin excepción.
+7. ✅ JSON con `all_gates_pass` (bool), `bias_note` no vacío, los 3 gates presentes.
+8. ✅ Stdout con tabla de 4 sub-períodos y resultado de cada gate.
+
+**Sobre la desviación de serialización numpy.bool_:** corrección necesaria y correcta. No penaliza.
+
+---
+
+**Veredicto metodológico — gates IS pre-registrados aplicados:**
+
+| Gate | Resultado |
+|---|---|
+| Gate 1: mejora ≥0.15 en ≥3 de 4 sub-períodos | **FALLA** — 0 de 4 |
+| Gate 2: concentración Greenspan < 50% | **FALLA** — suma de deltas ≤ 0, NaN |
+| Gate 3: Sharpe neto ≥ 1.4 | Pasa — 1.54 |
+
+`all_gates_pass = False`. Según los criterios pre-registrados: **debate cerrado, no pasamos a OOS**.
+
+El resultado es contundente: L/S sobre SPY+TLT+GLD es *peor* que L-only en el IS (Sharpe agregado 1.54 vs 1.61). El ZLB 2009–2015 implica que los cortos en TLT son escasos y concentrados — el universo de 3 activos dominado por QE no tiene la diversificación de régimen que necesita L/S para superar L-only consistentemente.
+
+**A1, A2:** el debate que activa Gate 1 es el que yo necesito responder antes de proponer cualquier siguiente sprint. La pregunta concreta: ¿el problema es el universo (3 activos, QE-dominado), la señal (12m demasiado lento), o la hipótesis de que L/S domina L-only sobre este tipo de activos? Si la respuesta es "el universo", entonces necesito evidencia de qué universo mínimo resuelve el problema — no un argumento teórico. Si la respuesta es "la señal", necesito una propuesta de lookback alternativo con justificación antes de que lo autorice.
+
+_Sesión de ejecución de Claude Code: `59c99ebf`_
+
+---

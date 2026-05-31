@@ -214,6 +214,99 @@ def run_backtest(
     return portfolio_returns, report
 
 
+def run_backtest_ls(
+    tickers: list[str],
+    start: date,
+    end: date,
+    borrow_costs: dict[str, float],
+    lookback_months: int = 12,
+    target_vol: float = 0.10,
+) -> tuple[pd.Series, PerformanceReport]:
+    """
+    Run a TSMOM long/short backtest over any date range.
+
+    # LS: no OOS guard — IS/WF use only
+
+    Signal ∈ {+1, −1}: zero-momentum assets are shorted (never flat).
+    Borrow cost drag is applied daily only to short positions.
+
+    Parameters
+    ----------
+    tickers : list[str]
+        Asset universe to trade.
+    start : date
+        First date of the backtest period.
+    end : date
+        Last date of the backtest period.
+    borrow_costs : dict[str, float]
+        Annualised borrow rate per ticker (e.g. {"TLT": 0.001}).
+        Ticker absent from dict → 0.0 borrow cost.
+    lookback_months : int
+        Momentum lookback in months (converted to days as months × 21).
+    target_vol : float
+        Annualised per-asset volatility target. Default 10 %.
+
+    Returns
+    -------
+    equity_curve : pd.Series
+        Daily portfolio returns. Index is ``datetime.date``. Name: "tsmom_ls".
+        NaN values propagate from the adapter without filling.
+    report : PerformanceReport
+        Risk-adjusted metrics computed by ``compute_performance``.
+
+    Notes
+    -----
+    **Signal transformation**: ``_compute_monthly_signal`` returns {0, 1, NaN}.
+    Zeros (flat/negative momentum) are replaced with −1 (short). NaN stays NaN.
+
+    **Borrow drag** (short positions only):
+        net_return = signal × asset_return × weight
+                     − (signal == −1) × borrow_rate/252 × weight
+    Vol-weight is applied symmetrically in magnitude for both longs and shorts.
+
+    **No data leakage**: entry price is next day's open (open[t+1]), identical to
+    ``run_backtest_range``. Changing this invalidates all reported metrics.
+    """
+    # --- 1. Load OHLCV via adapter ---
+    data = YFinanceAdapter().load_ohlcv_daily(tickers, start, end)
+
+    close = _pivot_ohlcv(data, "close")
+    open_ = _pivot_ohlcv(data, "open")
+
+    # --- 2. TSMOM signal: long-only {0, 1} → long/short {-1, 1} ---
+    # NaN during warmup stays NaN. 0 (flat/negative momentum) becomes -1 (short).
+    lookback_days = lookback_months * 21
+    signal_lo = _compute_monthly_signal(close, lookback_days)
+    signal_ls = signal_lo.replace(0, -1.0)
+
+    # --- 3. Entry at next day's open — NO DATA LEAKAGE ---
+    entry_price = open_.shift(-1)
+    daily_asset_returns = entry_price.shift(-1) / entry_price - 1.0
+
+    # --- 4. EWMA vol-scaling (λ=0.94 — RiskMetrics, not a free parameter) ---
+    vol_weight = _compute_ewma_vol_weight(close, target_vol)
+
+    # --- 5. Borrow cost drag (short positions only) ---
+    # borrow_drag[t, ticker] = (signal == -1) × borrow_rate/252 × vol_weight
+    borrow_per_ticker = pd.Series(
+        {t: borrow_costs.get(t, 0.0) for t in signal_ls.columns}
+    )
+    borrow_drag = (
+        (signal_ls == -1).astype(float) * (borrow_per_ticker / 252.0) * vol_weight
+    )
+
+    # --- 6. Portfolio returns: signal × return × vol_weight − borrow_drag ---
+    asset_pnl = signal_ls * daily_asset_returns * vol_weight
+    portfolio_returns = (asset_pnl - borrow_drag).mean(axis=1)
+    portfolio_returns.index = portfolio_returns.index.date
+    portfolio_returns.name = "tsmom_ls"
+
+    # --- 7. Performance metrics — delegated entirely to equity_metrics ---
+    report = compute_performance(portfolio_returns, freq=Frequency.DAILY)
+
+    return portfolio_returns, report
+
+
 def run_backtest_range(
     tickers: list[str],
     start: date,

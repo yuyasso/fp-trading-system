@@ -21,6 +21,7 @@ from trading.backtest.runner import (
     _OOS_START,
     _compute_monthly_signal,
     run_backtest,
+    run_backtest_ls,
     run_backtest_range,
 )
 from trading.domain.metrics.equity_metrics import Frequency, PerformanceReport
@@ -477,3 +478,122 @@ def test_run_backtest_original_guard_still_raises() -> None:
     with patch("trading.backtest.runner.YFinanceAdapter"):
         with pytest.raises(ValueError, match="OOS"):
             run_backtest(["SPY"], date(2023, 1, 1), date(2023, 12, 31))
+
+
+# ---------------------------------------------------------------------------
+# Helper: run run_backtest_ls with a given mock DataFrame
+# ---------------------------------------------------------------------------
+
+
+def _run_ls_with_mock(
+    mock_data: pd.DataFrame,
+    tickers: list[str] | None = None,
+    start: date = _IS_START,
+    end: date = _IS_END,
+    borrow_costs: dict[str, float] | None = None,
+    lookback_months: int = 12,
+    target_vol: float = 0.10,
+) -> tuple[pd.Series, PerformanceReport]:
+    if tickers is None:
+        tickers = list(mock_data.index.get_level_values("ticker").unique())
+    if borrow_costs is None:
+        borrow_costs = {}
+    with patch("trading.backtest.runner.YFinanceAdapter") as MockCls:
+        MockCls.return_value.load_ohlcv_daily.return_value = mock_data
+        return run_backtest_ls(
+            tickers, start, end, borrow_costs, lookback_months, target_vol
+        )
+
+
+# ---------------------------------------------------------------------------
+# Tests: run_backtest_ls
+# ---------------------------------------------------------------------------
+
+
+def test_run_backtest_ls_short_when_negative_momentum() -> None:
+    """
+    With consistently declining prices, momentum < 0 → signal_ls = -1 (short).
+    Shorting a declining asset must yield positive cumulative portfolio return.
+    """
+    n = 500
+    closes = np.linspace(200.0, 100.0, n)  # declining → momentum < 0 after lookback
+    opens = closes + 1.0
+    mock_data = _make_mock_ohlcv(["SPY"], closes, opens)
+
+    equity, _ = _run_ls_with_mock(mock_data, target_vol=100.0)
+
+    post_warmup = equity.iloc[12 * 21 :].dropna()
+    assert len(post_warmup) > 0, "Expected non-empty post-warmup equity"
+    # Short + declining prices → asset_return < 0 → net_return = -asset_return > 0
+    assert post_warmup.sum() > 0, (
+        "Short position on a declining asset must produce positive cumulative return"
+    )
+
+
+def test_run_backtest_ls_no_zero_weight() -> None:
+    """
+    After signal transformation (replace 0 → -1), signal_ls ∈ {-1, 1}.
+    With target_vol=100 (vol_weight=1.0) and non-flat prices, no daily return
+    should be exactly 0.0 in the post-warmup period.
+    """
+    n = 500
+    closes = np.linspace(200.0, 100.0, n)  # strictly monotone → no zero momentum
+    opens = closes + 1.0
+    mock_data = _make_mock_ohlcv(["SPY"], closes, opens)
+
+    equity, _ = _run_ls_with_mock(mock_data, target_vol=100.0)
+
+    post_warmup = equity.iloc[12 * 21 :].dropna()
+    assert len(post_warmup) > 0
+    # Signal ∈ {-1, 1} with non-flat prices → asset_return ≠ 0 → portfolio_return ≠ 0
+    assert not (post_warmup == 0.0).any(), (
+        "LS signal must never be 0; every post-warmup return should be non-zero "
+        "when underlying prices are strictly monotone"
+    )
+
+
+def test_run_backtest_ls_borrow_cost_reduces_return() -> None:
+    """
+    With SPY in short position (declining prices → signal_ls=-1) and a high
+    borrow cost, cumulative portfolio return must be lower than with zero borrow.
+    """
+    n = 500
+    closes = np.linspace(200.0, 100.0, n)  # declining → SPY will be shorted
+    opens = closes + 1.0
+    mock_data = _make_mock_ohlcv(["SPY"], closes, opens)
+
+    equity_no_borrow, _ = _run_ls_with_mock(
+        mock_data, borrow_costs={}, target_vol=100.0
+    )
+    equity_with_borrow, _ = _run_ls_with_mock(
+        mock_data, borrow_costs={"SPY": 0.10}, target_vol=100.0
+    )
+
+    post_no_borrow = equity_no_borrow.iloc[12 * 21 :].dropna()
+    post_with_borrow = equity_with_borrow.iloc[12 * 21 :].dropna()
+
+    assert post_with_borrow.sum() < post_no_borrow.sum(), (
+        "Borrow cost on short position must reduce cumulative portfolio return"
+    )
+
+
+def test_run_backtest_ls_nan_propagation() -> None:
+    """
+    NaN in adapter open prices must propagate to the LS equity curve without
+    being filled. The runner must not call ffill, bfill, fillna, or interpolate.
+    """
+    n = 500
+    closes = np.linspace(200.0, 100.0, n)
+    opens = closes + 1.0
+    opens[300] = np.nan  # NaN at open[300] → affects entry_price at 299/300
+
+    mock_data = _make_mock_ohlcv(["SPY"], closes, opens)
+
+    equity, _ = _run_ls_with_mock(mock_data)
+
+    assert equity.isna().any(), (
+        "NaN in adapter output must propagate to LS equity curve (no filling)"
+    )
+    assert pd.isna(equity.iloc[298]) or pd.isna(equity.iloc[299]), (
+        "NaN at open[300] should cause NaN in returns at surrounding indices"
+    )

@@ -691,3 +691,65 @@ El punto de A2 sobre el valor real de fase 0 (proceso operativo, no confirmació
 TL, luz verde. En PLANNING tu primer punto es confirmar viabilidad técnica del cron diario sobre lo existente o notificar bloqueante. Segundo punto: planificar el script con el criterio de aceptación del PO.
 
 ---
+
+## 2026-05-31 18:20 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — TSMOM long/short sobre SPY+TLT+GLD (v4)**
+
+**En una frase:** rediseñamos TSMOM como long/short simétrico sobre el universo reducido SPY+TLT+GLD, con gate IS sub-período que exige mejora incremental real sobre long-only antes de tocar el OOS.
+
+---
+
+**Estrategia concreta propuesta:**
+
+| Elemento | Decisión |
+|---|---|
+| Señal | TSMOM 12m, mismos parámetros — solo cambia la dirección |
+| Universo | SPY + TLT + GLD — DBC y UUP **fuera** en ambas direcciones (coste de borrow adverso documentado por A2) |
+| Dirección | Long/short simétrico — signal ∈ {+1, −1}, sin posición cero |
+| Costes de borrow | Modelados explícitamente en IS: 0.1% anual TLT, 0.4% GLD, 0.0% SPY (estimaciones A2) |
+| Universo v2 | Congelado — no se añaden activos hasta que este diseño pase o falle |
+
+---
+
+**Criterios de validación IS (pre-registrados, inamovibles):**
+
+| Gate | Condición | Si falla |
+|---|---|---|
+| Mejora incremental sub-período | Sharpe L/S > Sharpe L-only en ≥3 de 4 sub-períodos, delta ≥ 0.15 | Debate cerrado — no pasamos a OOS |
+| No concentración Greenspan | Alpha incremental de 2005–08 < 50% del total | Si > 50%, problema estructural — debate antes de OOS |
+| IS ajustado por borrow | Sharpe L/S neto ≥ 1.4 | Sprint rechazado |
+
+Gates OOS: los mismos del WF v2 (Sharpe > 0.8, DD < 15%, ratio OOS/IS > 0.35 en régimen normal).
+
+---
+
+**Riesgos que vigilo:**
+
+- **Sesgo de selección declarado:** el ADR debe nombrar explícitamente que sabemos que 2022 falla long-only y que los shorts habrían funcionado ahí. La justificación metodológica (Moskowitz et al., motivación económica) mitiga pero no elimina ese sesgo — el gate de 4 sub-períodos es el antídoto.
+- **Sharpe IS inflado por Greenspan:** si 2005–08 explica >50% del delta, el sistema tiene el mismo problema estructural que antes, solo con otra concentración. Es un gate, no una advertencia.
+- **Complejidad operativa:** pasar a real con shorts requiere broker con API (Interactive Brokers o equivalente). No es decisión de este sprint, pero Fran debe saberlo como prerequisito de fase 1.
+
+---
+
+Jefe, esta síntesis incorpora todas las posiciones de A1 y A2 sin condiciones flotantes. ¿Revisas?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta cerrada y autocontenida. El TL puede planificar sin hacer preguntas adicionales.
+
+Los tres gates IS son medibles, pre-registrados antes de ver datos, y con consecuencia definida si fallan. El sesgo de selección está nombrado en el ADR como exige A1. El universo está cerrado (3 activos, sin asimetría). Los costes de borrow son fijos y entran en el IS — no son un ajuste post-hoc.
+
+Dos puntos que vigilo desde aquí:
+
+1. **El gate de concentración Greenspan debe operacionalizarse sin ambigüedad en el plan del TL.** La métrica natural es: delta Sharpe del sub-período 2005-08 dividido por la suma de los 4 deltas sub-período. Si el TL lo interpreta de otra forma, que lo explicite en PLANNING antes de ejecutar.
+
+2. **Signal ∈ {+1, −1} sin posición cero** es una decisión fuerte — siempre en mercado, sin estado neutral. Es coherente con TSMOM clásico y lo acepto, pero el equipo debe ser consciente de que elimina la opción de "salirse" cuando el momentum es ambiguo.
+
+TL, luz verde. Planifica.
+
+---
