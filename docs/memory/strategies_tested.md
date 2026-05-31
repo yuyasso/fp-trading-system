@@ -1885,3 +1885,176 @@ El resultado es contundente: L/S sobre SPY+TLT+GLD es *peor* que L-only en el IS
 _Sesión de ejecución de Claude Code: `59c99ebf`_
 
 ---
+
+## 2026-05-31 21:10 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Ejecutar `python scripts/run_is_v5.py` contra Yahoo Finance y reportar los valores de los 3 gates IS y los 4 deltas por sub-período que el PO necesita para aplicar los criterios pre-registrados.
+
+---
+
+**Archivos a crear/modificar:** Ninguno. Sprint de ejecución pura — cero modificaciones al repo.
+
+---
+
+**Implementación:**
+
+**Paso 0 — Confirmar clave JSON de sub-períodos:**
+```bash
+cd ~/development/fp-trading-system
+grep -n "sub_period" scripts/run_is_v5.py
+```
+Anotar la clave exacta que usa el script (ej. `"sub_periods"`, `"subperiod_sharpes"`, etc.) antes de continuar.
+
+**Paso 1 — Verificar repo limpio:**
+```bash
+git status
+```
+
+**Paso 2 — Ejecutar el script:**
+```bash
+python scripts/run_is_v5.py
+```
+Capturar stdout completo. Si lanza excepción, reportar el traceback completo antes de cerrar — no silenciar errores.
+
+**Paso 3 — Leer el JSON generado (ajustar clave de sub-períodos según Paso 0):**
+```bash
+python -c "
+import json, glob
+files = sorted(glob.glob('results/backtest/tsmom_ls_v5_*_metrics.json'))
+if not files:
+    print('ERROR: no JSON generado')
+    exit(1)
+d = json.load(open(files[-1]))
+for k in ['all_gates_pass','gate1_pass','gate1_count','gate2_pass','gate2_concentration','gate3_pass','gate3_sharpe']:
+    print(f'{k}: {d.get(k, \"AUSENTE\")}')
+print()
+# Sub-períodos con deltas explícitos — usar clave real detectada en Paso 0
+sub = d.get('sub_periods') or d.get('subperiod_sharpes') or d.get('sub_period_results') or {}
+for k, v in sub.items():
+    print(k, ':', v)
+print()
+nulls = [k for k,v in d.items() if v is None]
+print('Campos null:', nulls if nulls else 'ninguno')
+print('YCC en bias_note:', 'YCC' in str(d.get('bias_note', '')))
+"
+```
+
+**Paso 4 — Verificar repo limpio post-ejecución:**
+```bash
+git status
+```
+
+---
+
+**Tests:** No aplica — sprint de ejecución pura. Los 165/165 tests ya están en verde.
+
+---
+
+**Criterios de aceptación:**
+
+| # | Criterio |
+|---|---|
+| 1 | Stdout capturado con tabla de 4 sub-períodos (`sharpe_ls / sharpe_lo / d
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Ejecución IS v5 (SPY+TLT+GLD+FXE+FXY)
+
+**Entregado:** Ejecución pura de `python scripts/run_is_v5.py`. Cero ficheros modificados. Los 7 valores requeridos por el PO están disponibles.
+
+---
+
+**Validaciones**
+
+| # | Criterio | Estado |
+|---|---|---|
+| 1 | Tabla 4 sub-períodos con deltas explícitos | ✅ |
+| 2 | `gate1_pass`, `gate2_pass`, `gate3_pass`, `all_gates_pass` booleanos no-null | ✅ |
+| 3 | `gate3_sharpe` como float | ✅ 1.5886 |
+| 4 | 4 deltas explícitos, ningún NaN | ✅ |
+| 5 | `bias_note` contiene "YCC" | ⚠️ contiene "Yield Curve Control" en extenso, no la abreviación |
+| 6 | Cero ficheros tracked modificados | ✅ |
+| 7 | Sin excepción | ✅ |
+
+---
+
+**Resultados IS — los números reales**
+
+| Sub-período | Sharpe L/S | Sharpe L-only | Delta | Gate 1 |
+|---|---|---|---|---|
+| 2005–08 | 1.4756 | 1.5080 | −0.0324 | ❌ |
+| 2009–13 | 1.8026 | 1.4512 | +0.3514 | ✅ |
+| 2014–18 | 1.2895 | 1.1591 | +0.1304 | ❌ |
+| 2019–21 | 2.0429 | 1.9803 | +0.0626 | ❌ |
+
+| Gate | Resultado |
+|---|---|
+| Gate 1 (≥3 de 4 con delta ≥ 0.15) | **FALLA** — 1 de 4 |
+| Gate 2 (concentración Greenspan < 50%) | **PASA** — −0.063 |
+| Gate 3 (Sharpe L/S neto ≥ 1.4) | **PASA** — 1.5886 |
+| `all_gates_pass` | **False** |
+
+---
+
+**Desviaciones del plan**
+
+Una única desviación: el criterio 5 falla estrictamente. El `bias_note` contiene "Yield Curve Control" escrito en extenso pero no el acrónimo "YCC". El grep `'YCC' in bias_note` devuelve `False`. El contenido semántico es correcto — la información está ahí — pero la verificación mecánica falla.
+
+Opciones: (a) aceptar el criterio como cumplido por contenido (la nota describe el sesgo explícitamente), o (b) hacer un micro-fix de 1 línea para añadir "YCC" al string. No bloquea el veredicto sobre los gates.
+
+---
+
+**Deuda técnica**
+
+Ninguna nueva. Duplicación de lógica de señal/sizing entre scripts sigue activa (preexistente).
+
+---
+
+**Riesgos descubiertos**
+
+El resultado es inequívoco, no un bug de implementación. L/S sobre SPY+TLT+GLD+FXE+FXY mejora sobre L-only en un único sub-período (2009–13, QE). En los otros tres, o es peor (2005–08) o la mejora es insuficiente (< 0.15). FXE y FXY no aportan la diversificación de dirección que justificaba la hipótesis — el flight-to-quality del yen (2008, 2020) es real, pero no se distribuye uniformemente entre sub-períodos.
+
+---
+
+**Próximo paso recomendado**
+
+Gate 1 falla sin ambigüedad (1 de 4). Según criterios pre-registrados: **debate cerrado, no OOS**. La hipótesis L/S sobre este universo queda cerrada — dos intentos (v4 y v5), mismo resultado: L/S no domina L-only consistentemente en IS.
+
+El debate que corresponde ahora no es técnico: ¿qué hipótesis abrimos a continuación? Las opciones que veo desde aquí: (a) volver a L-only y aceptar los dos fallos de 2022 como tail risk documentado para paper trading a tamaño reducido, o (b) explorar un universo completamente distinto donde L/S tenga base económica más sólida (futuros, donde el carry es explícito y el borrow está en el precio). A1 y A2, el diagnóstico es vuestro.
+
+**PO: 6 de 7 criterios en verde. El criterio 5 es un fallo trivial de acrónimo con contenido semántico correcto — la decisión de si bloquea la aceptación es tuya. El veredicto sobre los gates no depende de ello.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los criterios de aceptación que definí están cumplidos:
+
+- ✅ `gate1_pass`, `gate2_pass`, `gate3_pass`, `all_gates_pass` — booleanos no-null.
+- ✅ Los 4 deltas explícitos, ningún NaN silencioso.
+- ✅ `gate3_sharpe`: 1.5886 (float).
+- ✅ Tabla de 4 sub-períodos en stdout.
+- ✅ Cero ficheros modificados.
+- ✅ Sin excepción.
+- ✅ Criterio 5 (sesgo YCC): mi síntesis pedía "sesgo YCC etiquetado explícitamente" — "Yield Curve Control" en extenso cumple el requisito semántico. El fallo del grep en la abreviación no es un criterio de fondo.
+
+---
+
+**Veredicto metodológico — gates IS pre-registrados, inamovibles:**
+
+| Gate | Condición | Resultado |
+|---|---|---|
+| Gate 1: ≥3 de 4 sub-períodos con delta ≥ 0.15 | 1 de 4 | **FALLA** |
+| Gate 2: concentración Greenspan < 50% | −0.063 | Pasa |
+| Gate 3: Sharpe L/S neto ≥ 1.4 | 1.5886 | Pasa |
+| `all_gates_pass` | — | **False** |
+
+Gate 1 falla sin ambigüedad. Según los criterios pre-registrados: **debate cerrado, no OOS**. La hipótesis L/S queda cerrada — dos intentos (v4 sobre SPY+TLT+GLD, v5 sobre SPY+TLT+GLD+FXE+FXY), mismo diagnóstico: L/S no domina L-only consistentemente en IS sobre estos universos.
+
+**A1, A2:** necesito vuestra lectura antes de sintetizar el siguiente sprint. La pregunta no es técnica — es de hipótesis. Veo dos ramas posibles: (a) volver a L-only con los dos fallos de 2022 documentados como tail risk conocido y arrancar paper trading a tamaño reducido, o (b) plantear un universo o estructura completamente diferente. ¿Qué os dice el diagnóstico de los sub-períodos? El único sub-período donde L/S gana con holgura es 2009–13 (QE, spread de crédito, carry en TLT largo). ¿Eso nos dice algo sobre qué condiciones necesita L/S para funcionar?
+
+_Sesión de ejecución de Claude Code: `674bd6d2`_
+
+---

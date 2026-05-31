@@ -753,3 +753,155 @@ Dos puntos que vigilo desde aquí:
 TL, luz verde. Planifica.
 
 ---
+
+## 2026-05-31 18:43 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Diagnóstico FX antes de diseñar v5**
+
+**En una frase:** antes de comprometer un sprint de IS, ejecutamos un one-liner diagnóstico que mide si FXE/FXY aportan diversificación real al portfolio corto — el resultado activa o cierra la hipótesis de universo ampliado.
+
+---
+
+**Qué propongo ejecutar (sprint de diagnóstico):**
+
+Un único one-liner sobre datos Yahoo, sin código nuevo en el repo, que responde dos preguntas en este orden:
+
+1. Señal 12m de FXE y FXY entrando a 2022Q2 — confirma el mecanismo causal que A2 describe.
+2. Fracción de trimestres IS 2005–2021 donde FXE/FXY están en dirección opuesta a SPY **y** TLT simultáneamente — mide la diversificación real del portfolio corto, no solo el comportamiento en 2022.
+
+---
+
+**Criterio binario pre-registrado (inamovible antes de ver el resultado):**
+
+| Resultado | Consecuencia |
+|---|---|
+| ≥ 30% de trimestres IS con FXE/FXY anticorrelados con SPY+TLT simultáneamente | Diseñamos IS v5 sobre SPY+TLT+GLD+FXE+FXY con los mismos 3 gates |
+| < 30% | El problema es estructural — debate sobre futuros o cierre de la hipótesis L/S |
+
+---
+
+**Riesgos que registro:**
+
+- **YCC de FXY:** A1 señala correctamente que FXY en IS 2014–2021 estuvo bajo control artificial del BOJ. El ADR del sprint de IS (si lo hay) debe etiquetarlo explícitamente — es el mismo tipo de sesgo que documentamos para TLT en QE.
+- **El 30% no es un número optimizado:** es el umbral mínimo para que el portfolio corto tenga diversificación estadísticamente no trivial con 64 trimestres IS. Si el resultado sale 31%, el debate no cambia — el número decide la rama, no lo que queremos ver.
+
+---
+
+TL, el encargo es un one-liner de lectura. Sin código nuevo, sin modificar el repo. ¿Algún bloqueante?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta limpia, mismo patrón que los diagnósticos anteriores que han funcionado bien. One-liner sin código nuevo, criterio binario pre-registrado, ambas ramas con consecuencia definida.
+
+El umbral del 30% es razonable como mínimo de diversificación no trivial. El riesgo YCC de A1 queda registrado para el ADR del sprint de IS si se llega ahí — no contamina esta decisión.
+
+TL, luz verde. Ejecuta el one-liner.
+
+---
+
+## 2026-05-31 19:54 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Re-síntesis PO — TSMOM L/S v5 (versión corregida tras rechazo del Jefe)**
+
+**En una frase:** IS L/S sobre SPY+TLT+GLD+FXE+FXY comparado contra L-only del *mismo universo* — aislando el efecto de dirección, con Gate 4 degradado a diagnóstico informativo.
+
+---
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Universo | SPY + TLT + GLD + FXE + FXY |
+| Borrow costs | FXE: 0.0%, FXY: 0.0%, SPY: 0.0%, TLT: 0.1%, GLD: 0.4% |
+| Runner | `run_backtest_ls` ya implementado — intocable |
+| Baseline Gate 1 | **L-only sobre SPY+TLT+GLD+FXE+FXY** — mismo universo, mismo sprint, dos backtests |
+| ADR | Sesgo YCC FXY IS 2014–2021 etiquetado en `bias_note` |
+
+---
+
+**Criterios de validación IS (pre-registrados, inamovibles):**
+
+| Gate | Condición | Si falla |
+|---|---|---|
+| Gate 1 | Sharpe L/S > Sharpe L-only v5 en ≥3 de 4 sub-períodos, delta ≥ 0.15 | Debate cerrado — no OOS |
+| Gate 2 | Alpha incremental 2005–08 < 50% del delta total | Debate antes de OOS |
+| Gate 3 | Sharpe L/S neto ≥ 1.4 | Sprint rechazado |
+
+**Concentración FX** — diagnóstico informativo, no gate de rechazo: si delta FXE+FXY en un único sub-período > 50% del delta FX total, se etiqueta en `bias_note`. No veta automáticamente, pero el PO lo leerá antes de decidir sobre OOS.
+
+---
+
+**Output requerido — no acepto sin:**
+1. JSON con Sharpe L/S y L-only por sub-período, deltas y los 3 gates con valores explícitos.
+2. Atribución por activo por sub-período.
+3. `bias_note` con sesgo YCC de FXY nombrado explícitamente.
+
+---
+
+**Riesgos que vigilo:** el margen del diagnóstico fue ajustado (32.2%). Si Gate 1 falla, la hipótesis L/S se cierra — no buscamos un tercer universo.
+
+Jefe, los dos puntos de rechazo están resueltos: Gate 4 es diagnóstico sin veto, y el baseline de Gate 1 es L-only sobre el mismo universo. ¿Revisas?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Los dos puntos del rechazo anterior están resueltos sin ambigüedad:
+
+1. **Gate 4 degradado a diagnóstico informativo** — sin poder de veto, sin condición flotante. El PO lo leerá en el JSON pero no dispara rechazo automático. Limpio.
+
+2. **Baseline de Gate 1 cerrado:** L-only sobre el mismo universo de 5 activos. Aísla el efecto de dirección, que es la hipótesis bajo prueba. El sprint ejecuta dos backtests — correcto y necesario.
+
+Los 3 gates son duros, binarios, con consecuencia definida. El output requerido es verificable. No hay preguntas abiertas ni condiciones que requieran decisión adicional antes de planificar.
+
+TL, luz verde.
+
+---
+
+## 2026-05-31 20:52 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Sprint de ejecución pura — IS v5 contra Yahoo Finance**
+
+**En una frase:** ejecutamos `python scripts/run_is_v5.py` para obtener los 7 valores que deciden si L/S v5 pasa los gates IS pre-registrados — sin tocar nada del repo.
+
+---
+
+**Lo que autorizo:**
+
+| Elemento | Decisión |
+|---|---|
+| Acción | `python scripts/run_is_v5.py` desde `~/development/fp-trading-system` |
+| Modificaciones al código | Ninguna — el script está aceptado (165/165 tests) |
+| Precaución de A2 (incorporada) | El TL ejecuta `grep -n "sub_period" scripts/run_is_v5.py` antes de correr el script — confirma la clave exacta del JSON en 5 segundos |
+
+---
+
+**Criterio de aceptación único:**
+
+JSON con `gate1_pass`, `gate2_pass`, `gate3_pass`, `all_gates_pass` como booleanos no-null, y los 4 deltas por sub-período explícitos — incluyendo cualquier NaN si existe (A2 señala el riesgo de contador silencioso con solo 3 de 4 sub-períodos válidos).
+
+**El veredicto lo emito yo cuando tenga los números**, aplicando los 3 gates pre-registrados sin negociación.
+
+---
+
+**Riesgos registrados:** clave JSON incorrecta (mitigado con grep previo) y NaN silencioso en Gate 1 (mitigado con reporte explícito de los 4 deltas). Ambos cubiertos en el plan del TL.
+
+Jefe, ¿revisas?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Sprint de ejecución pura, cero ambigüedad. El script está implementado y testeado (165/165), los gates son inmutables, y no hay decisión de diseño pendiente. El grep previo de A2 y el reporte explícito de los 4 deltas cubren los dos riesgos identificados.
+
+TL, ejecuta.
+
+---

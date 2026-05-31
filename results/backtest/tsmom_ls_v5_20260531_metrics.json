@@ -1,0 +1,48 @@
+{
+  "sharpe_ls": 1.588600724356895,
+  "sharpe_lo": 1.4548419461633249,
+  "max_drawdown_ls": -0.05687364898550582,
+  "n_rebalances": 192,
+  "subperiods": {
+    "2005-08": {
+      "sharpe_ls": 1.4756302213593409,
+      "sharpe_lo": 1.508020840337203,
+      "delta": -0.03239061897786222
+    },
+    "2009-13": {
+      "sharpe_ls": 1.8026423230625066,
+      "sharpe_lo": 1.4512020590731043,
+      "delta": 0.3514402639894023
+    },
+    "2014-18": {
+      "sharpe_ls": 1.289514220154158,
+      "sharpe_lo": 1.159123493996089,
+      "delta": 0.13039072615806901
+    },
+    "2019-21": {
+      "sharpe_ls": 2.0429036834005734,
+      "sharpe_lo": 1.9803307505677028,
+      "delta": 0.06257293283287058
+    }
+  },
+  "gate1_pass": false,
+  "gate1_count": 1,
+  "gate2_pass": true,
+  "gate2_concentration": -0.0632612838859073,
+  "gate3_pass": true,
+  "gate3_sharpe": 1.588600724356895,
+  "all_gates_pass": false,
+  "bias_note": "FXY IS 2014-2021: BOJ Yield Curve Control artificially suppressed JPY trends. Signals in sub-periods 2014-18 and 2019-21 may reflect policy-driven momentum, not free-market price discovery. BOJ normalization began 2024 \u2014 OOS regime differs.",
+  "fx_concentration_diagnostic": {
+    "subperiod_max_fx_share": 0.5055170727574108,
+    "subperiod_max_fx_label": "2014-18",
+    "concentrated": true
+  },
+  "borrow_costs": {
+    "SPY": 0.0,
+    "TLT": 0.001,
+    "GLD": 0.004,
+    "FXE": 0.0,
+    "FXY": 0.0
+  }
+}
