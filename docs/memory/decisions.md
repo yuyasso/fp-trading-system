@@ -957,3 +957,53 @@ Un punto que registro para el equipo: cuando los dos trimestres de fase 0 se cum
 TL, sin encargo. Esperamos datos de fase 0 o decisión de Fran.
 
 ---
+
+## 2026-06-03 23:46 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Diagnóstico vol TLT + FFR conjunto (pre-registro de criterio)**
+
+**En una frase:** pre-registramos el criterio binario inamovible y encargamos al TL un one-liner IS que activa o cierra definitivamente la hipótesis de gate de régimen.
+
+---
+
+**Criterio pre-registrado (inamovible antes de ejecutar el one-liner):**
+
+Condición conjunta, agrupada por ciclo:
+- Vol realizada TLT (rolling 21d, anualizada) > **P90 IS 2005–2021**
+- Delta FFR 90d > 0 (calculado desde `_FOMC_RATES` extendido)
+- Conteo por ciclo independiente, no por trimestre individual
+
+| Resultado | Consecuencia |
+|---|---|
+| ≥ 2 ciclos IS | Debate formal de gate con el PO — posible sprint de implementación |
+| < 2 ciclos IS | Línea cerrada. Tail risk 2022 queda como condición conocida. Paper trading con 10% de capital sin overlay |
+
+---
+
+**Lo que NO autorizo aquí:**
+
+Ningún ajuste del percentil post-hoc. P90 está fijado. Si el resultado sale en P89, no se mueve el umbral.
+
+---
+
+**Riesgo que registro:**
+
+El único riesgo metodológico ya está cubierto por A1: si el resultado ≥2 ciclos lleva a proponer un gate, ese gate debe probarse sobre todos los períodos IS, no solo calibrarse sobre 2022. La masa estadística del IS decide si hay señal o fitting.
+
+---
+
+TL, encargo: one-liner IS, mismo patrón que el diagnóstico FOMC. Sin código nuevo en el repo. Reporta: (1) P90 IS de vol TLT como float, (2) número de ciclos independientes que cumplen la condición conjunta, (3) fechas de inicio de cada ciclo. ¿Algún bloqueante?
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Propuesta limpia. Criterio binario pre-registrado con P90 fijo, agrupación por ciclo, ambas ramas con consecuencia definida, y cero código nuevo en el repo. Mismo patrón que el diagnóstico FOMC que ya funcionó correctamente.
+
+La condición conjunta de A1 (vol + FFR subiendo) es metodológicamente superior a vol sola — elimina los falsos positivos de 2008 y 2020 sin parámetro libre adicional. El delta FFR 90d es binario (>0 o no), no requiere calibración.
+
+TL, luz verde. Ejecuta el one-liner.
+
+---

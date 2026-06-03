@@ -2144,3 +2144,170 @@ Sin respuesta a (1), no sabemos si fase 0 está generando datos reales. Sin resp
 _Sesión de ejecución de Claude Code: `1707cd6d`_
 
 ---
+
+## 2026-06-03 23:52 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Ejecutar un one-liner IS que calcula el P90 IS 2005–2021 de la vol realizada de TLT y cuenta los ciclos independientes donde se cumple la condición conjunta (vol > P90 IS Y delta FFR 90d > 0), activando una de las dos ramas pre-registradas.
+
+---
+
+**Archivos a crear/modificar:** Ninguno. Sprint de ejecución pura — cero modificaciones al repo.
+
+---
+
+**Implementación:**
+
+Ejecutar desde `~/development/fp-trading-system`:
+
+```bash
+cd ~/development/fp-trading-system
+python -c "
+import sys, math
+import pandas as pd
+import yfinance as yf
+sys.path.insert(0, 'scripts')
+from run_wf import _FOMC_RATES
+
+# --- 1. Descargar TLT IS completo ---
+raw = yf.download('TLT', start='2005-01-01', end='2021-12-31', auto_adjust=True, progress=False)
+close = raw['Close'].squeeze().dropna()
+
+# --- 2. Vol realizada rolling 21d, anualizada ---
+daily_ret = close.pct_change().dropna()
+vol_21d = daily_ret.rolling(21).std() * math.sqrt(252)
+vol_is = vol_21d.dropna()
+
+# --- 3. P90 IS 2005–2021 ---
+p90 = float(vol_is.quantile(0.90))
+print(f'P90 IS vol TLT (rolling 21d, anualizada): {p90:.4f}')
+
+# --- 4. FFR delta 90d desde _FOMC_RATES ---
+fomc = pd.Series(
+    {pd.Timestamp(d): v for d, v in _FOMC_RATES.items()},
+    dtype=float
+).sort_index()
+
+def ffr_at(dt):
+    prior = fomc[fomc.index <= dt]
+    return float(prior.iloc[-1]) if not prior.empty else 0.0
+
+# --- 5. Condición conjunta diaria ---
+cond = pd.Series(False, index=vol_is.index)
+for dt in vol_is.index:
+    vol_ok  = vol_is[dt] > p90
+    ffr_now = ffr_at(dt)
+    ffr_90d = ffr_at(dt - pd.DateOffset(days=90))
+    ffr_ok  = (ffr_now - ffr_90d) > 0
+    cond[dt] = bool(vol_ok and ffr_ok)
+
+# --- 6. Agrupar en ciclos independientes ---
+# Nuevo ciclo si hay un gap de >= 21 días hábiles sin condición activa
+cycles = []
+in_cycle = False
+cycle_start = None
+gap = 0
+for dt, active in cond.items():
+    if active:
+        if not in_cycle:
+            cycle_start = dt
+            in_cycle = True
+        gap = 0
+    else:
+        if in_cycle:
+    
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Diagnóstico vol TLT + FFR conjunto
+
+**Entregado:** Ejecución pura del one-liner IS. Cero ficheros modificados. Los 3 valores requeridos por el PO están disponibles.
+
+---
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| P90 IS vol TLT reportado como float | ✅ 0.1887 |
+| Número de ciclos independientes | ✅ 0 |
+| Fechas de inicio de ciclos | ✅ ninguno |
+| Rama activada impresa en stdout | ✅ `< 2 ciclos: linea cerrada, tail risk conocido` |
+| Cero ficheros modificados | ✅ working tree limpio |
+| Sin excepción / ≥200 observaciones | ✅ 4.279 observaciones TLT |
+
+---
+
+**Desviaciones del plan**
+
+Ninguna. Output limpio, criterios cumplidos exactamente.
+
+---
+
+**Interpretación del resultado**
+
+El P90 IS de vol TLT es **18.87%**. Durante 2005–2021, no existe ningún período donde simultaneamente la vol realizada de TLT superara ese umbral **y** el FFR estuviera subiendo. La condición conjunta nunca coexistió en IS — lo que tiene coherencia: los episodios de vol alta en TLT fueron 2008 (easing) y 2020 (easing), no ciclos de hiking. El ciclo Greenspan fue gradual, con vol TLT contenida. El ciclo Yellen fue el más lento de la historia moderna.
+
+La consecuencia directa: **2022 es un outlier no representado en IS**. 450bps en 12 meses con vol alta de tipos simultánea no tiene precedente en los datos que tenemos. Ningún overlay calibrado sobre IS 2005–2021 podría haber anticipado ese régimen porque ese régimen no existía en el período de calibración.
+
+---
+
+**Deuda técnica**
+
+Ninguna nueva. La preexistente no cambia.
+
+---
+
+**Riesgos descubiertos**
+
+El resultado 0 ciclos no es un artefacto de datos ni de implementación — es el resultado real con el dict `_FOMC_RATES` extendido y 4.279 observaciones válidas. El diagnóstico es sólido.
+
+---
+
+**Próximo paso recomendado**
+
+Según el criterio pre-registrado, la rama activada es inequívoca: **línea de overlays cerrada, tail risk 2022 como condición conocida**. La decisión que corresponde al PO es formalizar la transición a paper trading con 10% de capital bajo esa condición — el número ya está anclado por Fran. A1 y A2, no hay más análisis IS que hacer aquí: el IS no contiene datos para calibrar ningún gate de este tipo. El debate es ahora de decisión, no de análisis.
+
+**PO: los 6 criterios de aceptación están cumplidos. La rama pre-registrada se activa sin ambigüedad. El veredicto es tuyo.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+Los 6 criterios que definí están cumplidos sin excepción:
+
+1. ✅ P90 IS vol TLT: 0.1887 — float con 4 decimales.
+2. ✅ Ciclos independientes: 0 — reportado explícitamente.
+3. ✅ Fechas de inicio: ninguno.
+4. ✅ Rama activada impresa en stdout: `< 2 ciclos: linea cerrada, tail risk conocido`.
+5. ✅ Cero ficheros modificados — working tree limpio.
+6. ✅ Sin excepción, 4.279 observaciones (>> 200).
+
+---
+
+**Veredicto metodológico — criterio pre-registrado, inamovible:**
+
+Resultado: 0 ciclos IS. Rama activada: **línea cerrada**. La condición conjunta (vol TLT > P90 Y FFR subiendo) nunca coexistió en IS 2005–2021. 2022 no tiene representación en el período de calibración — ningún overlay diseñado sobre IS podría haberlo anticipado. Eso no es un fallo de la metodología, es el límite honesto de los datos disponibles.
+
+**Consecuencia operativa:**
+
+La línea de overlays queda cerrada definitivamente. El tail risk de 2022 se documenta como **condición conocida, no resoluble con datos IS**. Esto no bloquea paper trading — simplifica la decisión.
+
+**Transición a paper trading con 10% de capital:**
+
+Con el número de Fran anclado (10%) y dos trimestres de fase 0 como condición de arranque:
+
+| Condición | Estado |
+|---|---|
+| Stop simulado −8% no disparado | pendiente de verificar en fase 0 |
+| Capital confirmado por Fran (10%) | ✅ confirmado |
+| Cron operativo | ✅ confirmado desde hoy |
+
+El criterio de salida a fase 1 sigue siendo: **dos trimestres de fase 0 limpios + stop simulado −8% no disparado**. La fecha estimada de evaluación es finales de noviembre 2026. No hay sprint de implementación que abrir antes de entonces.
+
+A1, A2: el análisis está agotado — el IS no tiene más datos que explotar para este tipo de gate. La siguiente conversación será sobre los resultados de fase 0 cuando llegue el momento.
+
+_Sesión de ejecución de Claude Code: `d0454ee7`_
+
+---

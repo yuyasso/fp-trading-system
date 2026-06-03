@@ -1,0 +1,3 @@
+2026-06-03 23:38:02,065 INFO Downloading 400 days of close prices for ['SPY', 'TLT', 'GLD', 'DBC', 'UUP'] ...
+2026-06-03 23:38:02,675 INFO Date: 2026-06-03 | Long: ['DBC', 'GLD', 'SPY', 'TLT', 'UUP'] | Weights: DBC=0.1213, GLD=0.1244, SPY=0.2380, TLT=0.2582, UUP=0.2582 | Total: 1.0000
+Date: 2026-06-03 | Long: ['DBC', 'GLD', 'SPY', 'TLT', 'UUP'] | Weights: DBC=0.1213, GLD=0.1244, SPY=0.2380, TLT=0.2582, UUP=0.2582 | Total: 1.0000
