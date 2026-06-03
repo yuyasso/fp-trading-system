@@ -1,0 +1,1 @@
+Test del modo autónomo - 2026-06-04

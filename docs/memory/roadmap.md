@@ -8,6 +8,8 @@
 
 ## Completado
 
+- **2026-06-04 00:20** — Sprint aceptado · Sesión `55b5b540` · ** Crear `README_TEST_AUTO.md` en la raíz del repo de trading como smoke test de escritura autónoma del Director.
+
 - **2026-06-03 23:52** — Sprint aceptado · Sesión `d0454ee7` · ** Ejecutar un one-liner IS que calcula el P90 IS 2005–2021 de la vol realizada de TLT y cuenta los ciclos independientes donde se cumple la condición conjunta (vol > P90 IS Y delta FFR 90d > 0), acti
 
 - **2026-05-31 21:51** — Sprint aceptado · Sesión `1707cd6d` · La propuesta validada no tiene componente de implementación — y el Jefe lo confirmó explícitamente: "TL, sin encargo."

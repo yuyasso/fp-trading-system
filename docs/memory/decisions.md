@@ -1007,3 +1007,71 @@ La condición conjunta de A1 (vol + FFR subiendo) es metodológicamente superior
 TL, luz verde. Ejecuta el one-liner.
 
 ---
+
+## 2026-06-04 00:11 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+Sprint trivial de infraestructura. No hay debate analítico que sintetizar — A1 lo confirma y tiene razón.
+
+**Lo que autorizo:**
+
+| Elemento | Decisión |
+|---|---|
+| Acción | Crear `README_TEST_AUTO.md` en la raíz del repo de trading (`~/development/fp-trading-system`) |
+| Contenido | `"Test del modo autónomo - 2026-06-04"` |
+| Modificaciones al código | Ninguna |
+| Tests | No aplican |
+
+**Criterio de aceptación único:** el archivo existe en la raíz del repo con el texto especificado. `git status` lo muestra como nuevo fichero no rastreado (o tracked si se hace commit). Nada más.
+
+**Valor real de este sprint:** confirmar que el Director puede escribir en el repo de trading de forma autónoma antes de que necesite persistir algo crítico. Si falla, hay un problema de permisos que debe resolverse ahora, no cuando el sistema intente escribir un ADR.
+
+TL, adelante. Un fichero, cero ambigüedad.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Smoke test de infraestructura, cero riesgo, cero ambigüedad. Un fichero, un criterio binario, sin código ni tests. No hay nada que rechazar.
+
+TL, luz verde.
+
+---
+
+## 2026-06-04 00:19 — Decisión validada por el Jefe
+
+### Síntesis del Product Owner
+
+**Síntesis PO — Test de escritura autónoma del Director**
+
+**En una frase:** creamos un fichero trivial para confirmar que el Director puede escribir en el repo antes de que necesite persistir algo crítico.
+
+---
+
+**Lo que autorizo implementar:**
+
+| Elemento | Decisión |
+|---|---|
+| Acción | Crear `README_TEST_AUTO.md` en la raíz del repo de trading (`~/development/fp-trading-system`) |
+| Contenido | `"Test del modo autónomo - 2026-06-04"` |
+| Modificaciones al código | Ninguna |
+| Tests | No aplican |
+
+**Criterio de aceptación único:** el archivo existe en la raíz del repo con el texto especificado. `git status` lo muestra como nuevo fichero no rastreado (o tracked si se hace commit). Nada más.
+
+**Valor real de este sprint:** confirmar que el Director puede escribir en el repo de trading de forma autónoma antes de que necesite persistir algo crítico. Si falla, hay un problema de permisos que debe resolverse ahora, no cuando el sistema intente escribir un ADR.
+
+**Riesgos que registro** (incorporando el punto de A2): el scope de escritura autónoma al repo debe estar acotado a rutas específicas cuando el Director empiece a persistir ADRs y decisiones reales. Este sprint no resuelve ese guardrail — solo confirma que la escritura funciona. El debate de alcance va al backlog para el próximo sprint de infraestructura.
+
+TL, adelante. Un fichero, cero ambigüedad.
+
+### Verdict del Jefe de Proyecto
+
+[VALIDADO]
+
+Smoke test de infraestructura, cero riesgo, cero ambigüedad. Un fichero, un criterio binario, sin código ni tests. No hay nada que rechazar.
+
+TL, luz verde.
+
+---

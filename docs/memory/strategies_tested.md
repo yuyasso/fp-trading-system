@@ -2311,3 +2311,95 @@ A1, A2: el análisis está agotado — el IS no tiene más datos que explotar pa
 _Sesión de ejecución de Claude Code: `d0454ee7`_
 
 ---
+
+## 2026-06-04 00:20 — Sprint completado y aceptado
+
+### Plan del Tech Lead
+
+**Objetivo:** Crear `README_TEST_AUTO.md` en la raíz del repo de trading como smoke test de escritura autónoma del Director.
+
+---
+
+**Archivos a crear/modificar:**
+```
+/home/fran/development/fp-trading-system/README_TEST_AUTO.md    ← crear
+```
+
+---
+
+**Implementación:**
+
+Crear el fichero con exactamente este contenido:
+```
+Test del modo autónomo - 2026-06-04
+```
+
+Sin modificar ningún otro fichero. Sin tocar scripts, tests, ni configuración.
+
+---
+
+**Tests:**
+
+No aplican. Sprint de infraestructura pura — no hay lógica testeable.
+
+---
+
+**Criterios de aceptación:**
+
+1. El fichero `README_TEST_AUTO.md` existe en `/home/fran/development/fp-trading-system/`.
+2. El contenido es exactamente `"Test del modo autónomo - 2026-06-04"`.
+3. `git status` muestra el fichero como nuevo (untracked o staged) — no como modificación de un fichero existente.
+4. Ningún otro fichero del repo ha sido modificado (`git diff --stat` vacío salvo el nuevo fichero).
+
+---
+
+**Comandos de validación:**
+
+```bash
+cd ~/development/fp-trading-system
+
+# Criterio 1 y 2: fichero existe con contenido correcto
+cat README_TEST_AUTO.md
+
+# Criterio 3 y 4: solo el nuevo fichero aparece, nada modificado
+git status
+```
+
+### Reporte de entrega del Tech Lead
+
+## Reporte de entrega — Smoke test escritura autónoma del Director
+
+**Entregado:** `README_TEST_AUTO.md` en `/home/fran/development/fp-trading-system/` con el texto exacto `"Test del modo autónomo - 2026-06-04"`.
+
+**Validaciones**
+
+| Criterio | Estado |
+|---|---|
+| Fichero existe con contenido correcto | ✅ |
+| `git status` muestra solo el nuevo fichero | ✅ |
+| Ningún otro fichero modificado | ✅ |
+| Tests | No aplican |
+
+**Desviaciones del plan:** Ninguna. Un fichero, contenido exacto, nada más tocado.
+
+**Deuda técnica:** La que señaló A2 sigue vigente — el scope de escritura autónoma no está acotado a rutas específicas. Cuando el Director empiece a persistir ADRs reales, un commit mal dirigido podría sobrescribir scripts activos de fase 0. Esto va al backlog de infraestructura; no era objetivo de este sprint.
+
+**Riesgos descubiertos:** Ninguno. El Director puede escribir en el repo sin restricción de rutas — eso confirma el smoke test y a la vez confirma el riesgo que A2 identificó.
+
+**Próximo paso recomendado:** No hay sprint técnico que abrir. El sistema está en fase 0, esperando dos trimestres de señales limpias. La única acción pendiente relevante es el debate de guardrails de escritura autónoma del Director — cuando llegue el momento de persistir decisiones reales, no un README de prueba.
+
+**PO: criterio único cumplido. El Director escribe. La decisión de aceptar o pedir el guardrail antes de cerrar es tuya.**
+
+### Aceptación del Product Owner
+
+[ACEPTADO]
+
+El criterio único que definí se cumple: `README_TEST_AUTO.md` existe en la raíz del repo con el contenido exacto especificado, `git status` lo muestra como nuevo fichero, y ningún otro fichero fue modificado.
+
+**Deuda que registro para backlog** (no penaliza la aceptación): el guardrail de rutas de escritura autónoma del Director — cuando el sistema empiece a persistir ADRs reales, este alcance sin restricciones es un riesgo operativo. A2 lo identificó correctamente; lo formalizo como trabajo pendiente antes de que el Director necesite escribir algo crítico.
+
+**Estado del sistema:** sin sprint activo. Fase 0 operativa, cron confirmado, esperando dos trimestres de señales limpias antes de evaluar fase 1.
+
+_Sesión de ejecución de Claude Code: `55b5b540`_
+
+---
